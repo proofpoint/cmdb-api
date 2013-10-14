@@ -1,0 +1,826 @@
+<?xml version='1.0' standalone='yes'?>
+<?xml-stylesheet type="text/xsl" href="/pp_lexicon.xsl"?>
+<!--
+# Copyright 2011-2013 Proofpoint, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+-->
+<pp_lexicon version="1.2.1">
+
+    <data_elements>
+
+        <fqdn>
+            <label>Name</label>
+            <flavor>config</flavor>
+            <format>string</format>
+            <fact>fqdn</fact>
+        </fqdn>
+
+        <inventory_component_type>
+            <label>Type</label>
+            <flavor>fact</flavor>
+            <format>string</format>
+            <enumeration>
+                <enumerator>blade_chassis</enumerator>
+                <enumerator>console_server</enumerator>
+                <enumerator>firewall</enumerator>
+                <enumerator>load_balancer</enumerator>
+                <enumerator>network_switch</enumerator>
+                <enumerator>other</enumerator>
+                <enumerator>power_strip</enumerator>
+                <enumerator>router</enumerator>
+                <enumerator>rsa_appliance</enumerator>
+                <enumerator>storage_head</enumerator>
+                <enumerator>storage_shelf</enumerator>
+                <enumerator>system</enumerator>
+                <enumerator>vpn</enumerator>
+            </enumeration>
+            <validation>
+                <is_string/>
+            </validation>
+        </inventory_component_type>
+
+        <system_type>
+            <label>Business</label>
+            <flavor>fact</flavor>
+            <format>string</format>
+            <enumeration>
+                <enumerator>Operations</enumerator>
+                <enumerator>Finance</enumerator>
+                <enumerator>Eng</enumerator>
+            </enumeration>
+            <validation>
+                <is_string/>
+            </validation>
+        </system_type>
+
+        <ip_address>
+            <label>IP Address</label>
+            <flavor>fact</flavor>
+            <format>string</format>
+            <validation>
+                <regex>/.*/</regex>
+            </validation>
+        </ip_address>
+
+        <mac_address>
+            <label>MAC Address</label>
+            <flavor>fact</flavor>
+            <format>string</format>
+            <validation>
+                <regex>/.*/</regex>
+            </validation>
+        </mac_address>
+
+        <rack_position>
+            <label>Rack Position</label>
+            <flavor>fact</flavor>
+            <format>string</format>
+            <validation>
+                <is_int />
+                <less_than_or_equal_to>42</less_than_or_equal_to>
+            </validation>
+        </rack_position>
+
+        <product_name>
+            <label>Product</label>
+            <flavor>fact</flavor>
+            <format>string</format>
+            <fact>product_name</fact>
+        </product_name>
+
+        <manufacturer>
+            <label>Manufacturer</label>
+            <flavor>fact</flavor>
+            <format>string</format>
+            <fact>manufacturer</fact>
+        </manufacturer>
+
+        <serial_number>
+            <label>Serial</label>
+            <flavor>fact</flavor>
+            <format>string</format>
+            <fact>serial_number</fact>
+        </serial_number>
+
+        <asset_tag_number>
+            <label>Asset Tag</label>
+            <flavor>fact</flavor>
+            <format>string</format>
+        </asset_tag_number>
+
+        <power_supply_count>
+            <label>Power Supply(count)</label>
+            <flavor>fact</flavor>
+            <required>false</required>
+            <format>int</format>
+            <validation>
+                <is_int />
+            </validation>
+        </power_supply_count>
+
+        <power_supply_watts>
+            <label>Power Supply(Watts)</label>
+            <flavor>fact</flavor>
+            <format>float</format>
+            <validation>
+                <is_float />
+            </validation>
+        </power_supply_watts>
+
+        <power_consumption_avg>
+            <label>Average Power Consumption(Watts)</label>
+            <flavor>fact</flavor>
+            <format>int</format>
+            <validation>
+                <is_int />
+            </validation>
+        </power_consumption_avg>
+
+        <power_consumption_peak>
+            <label>Peak Power Consumption(Watts)</label>
+            <flavor>fact</flavor>
+            <format>int</format>
+            <validation>
+                <is_int />
+            </validation>
+        </power_consumption_peak>
+
+        <power_consumption_peak_time>
+            <label>Time of Peak Power (Unix Timestamp, UTC)</label>
+            <flavor>fact</flavor>
+            <format>int_timestamp</format>
+        </power_consumption_peak_time>
+
+        <operating_system>
+            <label>OS</label>
+            <flavor>config</flavor>
+            <format>string</format>
+            <fact>operatingsystem</fact>
+        </operating_system>
+
+        <operating_system_release>
+            <label>OS Release</label>
+            <flavor>config</flavor>
+            <format>string</format>
+            <fact>operatingsystemrelease</fact>
+        </operating_system_release>
+
+        <!-- BEGIN: Ultra generic data types to validate -->
+
+        <string>
+            <format>string</format>
+        </string>
+
+        <int>
+            <format>int</format>
+            <validation>
+                <is_int />
+            </validation>
+        </int>
+
+        <bool>
+            <format>bool</format>
+            <validation>
+                <is_bool />
+            </validation>
+        </bool>
+
+        <float>
+            <format>float</format>
+            <validation>
+                <is_float />
+            </validation>
+        </float>
+
+        <date>
+            <format>string</format>
+        </date>
+
+        <int_timestamp>
+            <format>int</format>
+            <validation>
+                <is_int />
+                <regex>/^\d{9,10}$/</regex>
+            </validation>
+        </int_timestamp>
+
+        <!-- END: Ultra generic data types to validate -->
+
+    </data_elements>
+
+
+    <!-- These are the top level inventory API objects -->
+    <entities>
+ 		<device_ip key="ip_address">
+			<ip_address>
+				<label>IP</label>
+				<flavor>config</flavor>
+				<required>true</required>
+				<format>string</format>
+			</ip_address>
+			<fqdn refers_to="/pp_lexicon/entities/system" maps_to="/pp_lexicon/data_elements/fqdn" required="true" />
+			<note>
+				<label>Notes</label>
+				<flavor>config</flavor>
+				<format>string</format>
+				<required>false</required>
+			</note>
+		</device_ip>
+		<vip key="comkey">
+			<name>
+				<label>VIP Name</label>
+				<flavor>config</flavor>
+				<required>true</required>
+				<format>string</format>
+			</name>
+			<ip_address>
+				<label>Destination</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</ip_address>
+			<pool>
+				<label>Pool</label>
+				<flavor>config</flavor>
+				<required>true</required>
+				<format>string</format>
+			</pool>
+			<lb_fqdn refers_to="/pp_lexicon/entities/system">
+				<label>Load Balancer</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</lb_fqdn>
+			<vlans>
+				<label>VLANS</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</vlans>
+			<status>
+				<label>Status</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</status>	
+			<comkey>
+				<label>Lookup</label>
+				<flavor>config</flavor>
+				<required>true</required>
+				<format>string</format>
+			</comkey>	
+			<config>
+				<label>Config</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</config>		
+		</vip>
+		<pool key="comkey">
+			<name>
+				<label>Name</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</name>		
+			<members>
+				<label>Members</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</members>		
+			<status>
+				<label>Status</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</status>		
+			<lb_fqdn refers_to="/pp_lexicon/entities/system">
+				<label>Load Balancer</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</lb_fqdn>	
+			<monitor>
+				<label>Monitor</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</monitor>		
+			<comkey>
+				<label>Lookup</label>
+				<flavor>config</flavor>
+				<required>true</required>
+				<format>string</format>
+			</comkey>
+			<config>
+				<label>Config</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</config>
+		</pool>
+		<snat key="comkey">
+			<name>
+				<label>Name</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</name>		
+			<origins>
+				<label>Origins</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</origins>		
+			<lb_fqdn refers_to="/pp_lexicon/entities/system">
+				<label>Load Balancer</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</lb_fqdn>
+			<status>
+				<label>Status</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</status>		
+			<vlans>
+				<label>VLANS</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</vlans>		
+			<comkey>
+				<label>Lookup</label>
+				<flavor>config</flavor>
+				<required>true</required>
+				<format>string</format>
+			</comkey>
+			<config>
+				<label>Config</label>
+				<flavor>config</flavor>
+				<required>false</required>
+				<format>string</format>
+			</config>		
+		</snat>
+
+        <vips key="grouping_id,vip_address">
+            <grouping_id maps_to="/pp_lexicon/entities/grouping/grouping_id" required="false" />
+            <vip_address type="array">
+                <vip map_to="/pp_lexicon/entities/vip" />
+            </vip_address>
+        </vips>
+
+        <data_center key="data_center_code">
+            <data_center_code>
+		<label>Datacenter</label>
+                <flavor>fact</flavor>
+                <required>true</required>
+                <format>string</format>
+                <enumeration>
+                    <enumerator>DC1</enumerator>
+                    <enumerator>DC2</enumerator>
+                    <enumerator>DC3</enumerator>
+                    <enumerator>CORP</enumerator>
+                </enumeration>
+                <validation>
+                    <member_of>../enumeration</member_of>
+                </validation>
+            </data_center_code>
+            <data_center_vendor></data_center_vendor>
+            <data_center_city></data_center_city>
+            <data_center_country></data_center_country>
+            <data_center_telephone></data_center_telephone>
+            <valid_ip_ranges></valid_ip_ranges>
+        </data_center>
+
+        <datacenter_subnet key="id">
+			<id>
+				<label>ID</label>
+				<flavor>config</flavor>
+				<format>string</format>
+				<required>true</required>
+			</id>
+                <subnet>
+                        <label>Subnet</label>
+                        <flavor>config</flavor>
+                        <format>string</format>
+                        <required>true</required>
+                </subnet>
+                <data_center_code maps_to="/pp_lexicon/entities/data_center/data_center_code" flavor="fact" required='false' />
+                <notes>
+                        <label>Notes</label>
+                        <flavor>config</flavor>
+                        <format>string</format>
+                        <required>false</required>
+                </notes>
+		<ipv6_subnet>
+			<label>IPv6 Subnet</label>
+			<format>string</format>
+		</ipv6_subnet>
+                <az_id>
+                   <label>AZ ID</label>
+                   <format>string</format>
+                </az_id>
+        </datacenter_subnet>
+
+
+        <cage key="cage_code">
+            <data_center_code maps_to="/pp_lexicon/entities/data_center/data_center_code" flavor="fact" required='true' />
+            <cage_code maps_to="/pp_lexicon/data_elements/string" required="false" />
+        </cage>
+        <rack key="rack_code">
+            <data_center_code maps_to="/pp_lexicon/entities/data_center/data_center_code" flavor="fact" required='true' />
+            <cage_code maps_to="/pp_lexicon/entities/cage/cage_code" flavor="fact" required='true' />
+            <rack_code maps_to="/pp_lexicon/data_elements/string" required='false' />
+        </rack>
+		<service_instance key="svc_id">
+			<svc_id maps_to="/pp_lexicon/data_elements/int" label="SVC ID" required="true"/>
+			<name maps_to="/pp_lexicon/data_elements/string" required='true' label="SVC Name" />
+			<type maps_to="/pp_lexicon/data_elements/string" required='false' label="Type" />
+			<subtype maps_to="/pp_lexicon/data_elements/string" required='false' label="SubType" />
+			<note maps_to="/pp_lexicon/data_elements/string" required='false' label="Note" />
+			<environment_name maps_to="/pp_lexicon/data_elements/string" required='false' label="Environment" />
+		</service_instance>
+		<service_instance_data key="data_id">
+			<data_id maps_to="/pp_lexicon/data_elements/int" required='true' label="Data ID" />
+			<svc_id maps_to="/pp_lexicon/data_elements/int" required='true' label="SVC ID" />
+			<data_key maps_to="/pp_lexicon/data_elements/string" required='true' label="Key" />
+			<data_value maps_to="/pp_lexicon/data_elements/string" required='true' label="Value" />
+		</service_instance_data>		
+        <device key="fqdn">
+            <fqdn maps_to="/pp_lexicon/data_elements/fqdn" required="true" />
+            <inventory_component_type maps_to="/pp_lexicon/data_elements/inventory_component_type" required='true' default_value="unknown device" />
+ 			<hardware_class maps_to="/pp_lexicon/data_elements/string" label='HW Class'/>
+           <serial_number maps_to="/pp_lexicon/data_elements/serial_number" required="false" />
+            <system_type maps_to="/pp_lexicon/data_elements/system_type" required='false' default_value="unknown system" />
+            <ip_address maps_to="/pp_lexicon/data_elements/ip_address" required='true' />
+            <mac_address maps_to="/pp_lexicon/data_elements/mac_address" required='true' />
+            <data_center_code maps_to="/pp_lexicon/entities/data_center/data_center_code" required="false" >
+                <label>Data Center</label>
+            </data_center_code>
+            <cage_code maps_to="/pp_lexicon/entities/cage/cage_code"  required="false" >
+                <label>Cage</label>
+            </cage_code>
+            <rack_code maps_to="/pp_lexicon/entities/rack/rack_code"  required="false" >
+                <label>Rack</label>
+            </rack_code>
+            <rack_position maps_to="/pp_lexicon/data_elements/rack_position"  required="false" />
+            <manufacturer maps_to="/pp_lexicon/data_elements/manufacturer" required="false" />
+            <product_name maps_to="/pp_lexicon/data_elements/product_name" required="false" />
+            <created_by maps_to="/pp_lexicon/data_elements/string" required="false" label="Created by" />
+            <date_created maps_to="/pp_lexicon/data_elements/date" required="false" label="Created at" />
+            <date_modified maps_to="/pp_lexicon/data_elements/date" required="false" label="Modified at" />
+            <agent_reported maps_to="/pp_lexicon/data_elements/date" required="false" meta="true" >
+				<label>Agent Reported</label>
+			</agent_reported>
+            <status>
+                <label>Status</label>
+                <required>false</required>
+                <flavor>config</flavor>
+                <format>string</format>
+                <enumeration>
+                    <enumerator>production</enumerator>
+                    <enumerator>deployment</enumerator>
+                    <enumerator>allocated</enumerator>
+                    <enumerator>idle</enumerator>
+                    <enumerator>in transit</enumerator>
+                    <enumerator>degraded</enumerator>
+                    <enumerator>decommissioned</enumerator>
+                    <enumerator>disposed</enumerator>
+                </enumeration>
+                <validation>
+                    <is_string/>
+                </validation>
+            </status>
+        </device>
+
+        <power_strip extends="/pp_lexicon/entities/device" key="fqdn">
+          <agent_type maps_to="/pp_lexicon/data_elements/string" required="false" />
+        </power_strip>
+
+        <console_server extends="/pp_lexicon/entities/device" key="fqdn">
+          <agent_type maps_to="/pp_lexicon/data_elements/string" required="false" />
+        </console_server>
+
+        <router extends="/pp_lexicon/entities/device" key="fqdn">
+            <asset_tag_number maps_to="/pp_lexicon/data_elements/asset_tag_number" required="true" />
+            <operating_system maps_to="/pp_lexicon/data_elements/operating_system" required="false" />
+            <operating_system_release maps_to="/pp_lexicon/data_elements/operating_system_release" required="false" />
+            <agent_type maps_to="/pp_lexicon/data_elements/string" required="false" />
+        </router>
+
+        <load_balancer extends="/pp_lexicon/entities/device" key="fqdn">
+            <asset_tag_number maps_to="/pp_lexicon/data_elements/asset_tag_number" required="true" />
+            <operating_system maps_to="/pp_lexicon/data_elements/operating_system" required="false" />
+            <operating_system_release maps_to="/pp_lexicon/data_elements/operating_system_release" required="false" />
+            <agent_type maps_to="/pp_lexicon/data_elements/string" required="false" />
+            <vips  maps_to="/pp_lexicon/entities/vips" required="false" />
+        </load_balancer>
+
+        <network_switch extends="/pp_lexicon/entities/device" key="fqdn">
+            <asset_tag_number maps_to="/pp_lexicon/data_elements/asset_tag_number" required="false" />
+            <operating_system maps_to="/pp_lexicon/data_elements/operating_system" required="false" />
+            <operating_system_release maps_to="/pp_lexicon/data_elements/operating_system_release" required="false" />
+            <power_supply_count maps_to="/pp_lexicon/data_elements/power_supply_count" required="false" />
+            <power_supply_watts maps_to="/pp_lexicon/data_elements/power_supply_watts" required="false" />
+            <agent_type maps_to="/pp_lexicon/data_elements/string" required="false" />
+        </network_switch>
+        <ip key="address">
+                <address maps_to="/pp_lexicon/data_elements/ip_address" required="false"  />
+                <interface maps_to="/pp_lexicon/data_elements/string" required="true" />
+                <fqdn maps_to="/pp_lexicon/data_elements/string" required="true" />
+                <mac_address maps_to="/pp_lexicon/data_elements/mac_address" required="true" />
+                <is_primary maps_to="/pp_lexicon/data_elements/int" required="true" />
+        </ip>
+		<system extends="/pp_lexicon/entities/device" key="fqdn">
+			<svc_id maps_to="/pp_lexicon/data_elements/int" label="Service Record" required="false"/>
+			<agent_type label="Agent Type" maps_to="/pp_lexicon/data_elements/string" required="false"/>
+			<drac_version maps_to="/pp_lexicon/data_elements/string" required="false">
+				<label>Drac Version</label>
+			</drac_version>
+			<drac_macaddress maps_to="/pp_lexicon/data_elements/string" required="false">
+				<label>Drac MacAddress</label>
+			</drac_macaddress>
+			<bios_version maps_to="/pp_lexicon/data_elements/string" required="false">
+				<label>Bios Version</label>
+			</bios_version>
+			<raiddrives maps_to="/pp_lexicon/data_elements/string" required="false">
+				<label>Raid Drives</label>
+			</raiddrives>
+			<raidcontroller maps_to="/pp_lexicon/data_elements/string" required="false">
+				<label>Raid Controller</label>
+			</raidcontroller>
+			<raidvolumes maps_to="/pp_lexicon/data_elements/string" required="false">
+				<label>Raid Volumes</label>
+			</raidvolumes>
+			<raiddrivestatus maps_to="/pp_lexicon/data_elements/string" required="false">
+				<label>Raid Drive Status</label>
+			</raiddrivestatus>
+			<notes maps_to="/pp_lexicon/data_elements/string" required="false">
+				<label>Notes</label>
+			</notes>
+			<tags maps_to="/pp_lexicon/data_elements/string" required="false">
+				<label>JSON Tags</label>
+			</tags>
+			<warranty_info maps_to="/pp_lexicon/data_elements/string" required="false">
+				<label>Warranty Info</label>
+			</warranty_info>
+			<asset_tag_number maps_to="/pp_lexicon/data_elements/asset_tag_number" required="false"/>
+			<disk_drive_count maps_to="/pp_lexicon/data_elements/int" required="false">
+				<label>Drive Count</label>
+			</disk_drive_count>
+			<file_systems type="array">
+				<label>File Systems</label>
+				<file_system maps_to="/pp_lexicon/entities/file_system"/>
+			</file_systems>
+			<physical_processor_count maps_to="/pp_lexicon/data_elements/string" required="false">
+				<label>Processor Count</label>
+			</physical_processor_count>
+			<memory_size maps_to="/pp_lexicon/data_elements/string" required="false">
+				<label>Memory</label>
+			</memory_size>
+			<ipv6_address maps_to="/pp_lexicon/data_elements/string" required="false">
+				<label>IPv6 Address</label>
+			</ipv6_address>
+			<virtual maps_to="/pp_lexicon/data_elements/string" required="false">
+				<label>Virtual</label>
+			</virtual>
+			<operating_system maps_to="/pp_lexicon/data_elements/operating_system" required="false"/>
+			<operating_system_release maps_to="/pp_lexicon/data_elements/operating_system_release" required="false"/>
+			<kernel_release>
+				<label>Kernel Release</label>
+				<flavor>fact</flavor>
+				<format>string</format>
+				<fact>kernel_release</fact>
+			</kernel_release>
+			<primary_interface>
+				<label>Primary NIC</label>
+				<required>false</required>
+				<format>string</format>
+			</primary_interface>
+			<interfaces>
+				<label>NICs</label>
+				<required>false</required>
+				<format>string</format>
+			</interfaces>
+			<netdriver>
+				<label>Netdriver</label>
+				<flavor>fact</flavor>
+				<format>string</format>
+			</netdriver>
+			<netdriver_version>
+				<label>Netdriver Version</label>
+				<flavor>fact</flavor>
+				<format>string</format>
+			</netdriver_version>
+			<netdriver_firmware>
+				<label>Netdriver Firmware</label>
+				<flavor>fact</flavor>
+				<format>string</format>
+			</netdriver_firmware>
+			<drac maps_to="/pp_lexicon/entities/drac" required="false">
+				<label>DRAC</label>
+			</drac>
+			<roles>
+				<label>Roles</label>
+				<format>string</format>
+			</roles>
+			<power_supply_count maps_to="/pp_lexicon/data_elements/power_supply_count" required="false"/>
+			<power_supply_watts maps_to="/pp_lexicon/data_elements/power_supply_watts" required="false"/>
+			<power_consumption_avg maps_to="/pp_lexicon/data_elements/power_consumption_avg" required="false"/>
+			<power_consumption_peak maps_to="/pp_lexicon/data_elements/power_consumption_peak" required="false"/>
+			<power_consumption_peak_time maps_to="/pp_lexicon/data_elements/power_consumption_peak_time" required="false"/>
+			<is_virtual maps_to="/pp_lexicon/data_elements/bool" required="false"/>
+			<blade_chassis_serial maps_to="/pp_lexicon/data_elements/string" required="false"/>
+			<!-- This attribute is only meaningful if this system is a host for other systems (VM,blades) -->
+			<guest_fqdns type="array">
+				<label>Guest Hosts</label>
+				<fqdn maps_to="/pp_lexicon/data_elements/fqdn" required="false"/>
+			</guest_fqdns>
+			<!-- This attribute is only meaningful if this system is a guest (VM/blades) -->
+			<host_fqdn maps_to="/pp_lexicon/data_elements/fqdn" required="false">
+				<label>Parent Host</label>
+			</host_fqdn>
+			<audit_info>
+				<label>Phys Audit</label>
+				<required>false</required>
+				<flavor>config</flavor>
+				<format>string</format>
+			</audit_info>
+			<pic_instance>
+				<label>PIC Instance ID</label>
+				<required>false</required>
+				<format>string</format>
+			</pic_instance>
+			<environment_name maps_to="/pp_lexicon/data_elements/string" required="false" label="Environment"/>
+
+			<config_agent_timestamp maps_to="/pp_lexicon/data_elements/date" meta="true" required="false" label="Puppet Timestamp" />
+			<config_agent_status maps_to="/pp_lexicon/data_elements/string" meta="true" required="false" label="Puppet Status" />
+			<config_agent_summary maps_to="/pp_lexicon/data_elements/string" meta="true" required="false" label="Puppet Summary" />
+            <config_agent_output maps_to="/pp_lexicon/data_elements/string" meta="true" required="false" label="Puppet Output" />
+            <size maps_to="/pp_lexicon/data_elements/string" meta="true" required="false" label="Instance Size" />
+            <image maps_to="/pp_lexicon/data_elements/string" meta="true" required="false" label="System Image" />
+            <cloud maps_to="/pp_lexicon/data_elements/string" meta="true" required="false" label="Cloud" />
+		</system>
+
+        <blade_chassis extends="/pp_lexicon/entities/device" key="fqdn">
+            <guest_fqdns type="array">
+                <fqdn maps_to="/pp_lexicon/data_elements/fqdn" required="true" />
+            </guest_fqdns>
+        </blade_chassis>
+
+        <disk_drive key="drive_id">
+            <drive_id maps_to="/pp_lexicon/data_elements/int" required="true" />
+            <fqdn maps_to="/pp_lexicon/entities/device/fqdn" required="true" />
+            <drive_size maps_to="/pp_lexicon/data_elements/float" required="true" />
+            <date_created maps_to="/pp_lexicon/data_elements/date" required="true" />
+            <date_modified maps_to="/pp_lexicon/data_elements/date" required="true" />
+        </disk_drive>
+
+        <file_system key="file_system_id">
+            <file_system_id maps_to="/pp_lexicon/data_elements/int" required="true" />
+            <fqdn maps_to="/pp_lexicon/entities/device/fqdn" required="true" />
+            <file_system_name maps_to="/pp_lexicon/data_elements/string" required="true" />
+            <file_system_capacity maps_to="/pp_lexicon/data_elements/float" required="true" />>
+            <file_system_used maps_to="/pp_lexicon/data_elements/float" required="true" />
+            <date_created maps_to="/pp_lexicon/data_elements/date" required="true" />
+            <date_modified maps_to="/pp_lexicon/data_elements/date" required="true" />
+        </file_system>
+
+        <processor key="cpu_id">
+            <label>Processor</label>
+            <cpu_id maps_to="/pp_lexicon/data_elements/int" required="true" />
+            <fqdn maps_to="/pp_lexicon/entities/device/fqdn" required="true" />
+            <cpu_type maps_to="/pp_lexicon/data_elements/string" required="true" />
+            <cpu_cores maps_to="/pp_lexicon/data_elements/int" required="true" />
+            <cpu_speed maps_to="/pp_lexicon/data_elements/float" required="true" />
+            <date_created maps_to="/pp_lexicon/data_elements/date" required="true" />
+            <date_modified maps_to="/pp_lexicon/data_elements/date" required="true" />
+        </processor>
+
+        <drac key="drac_id">
+            <drac_id maps_to="/pp_lexicon/data_elements/int" required="true" />
+            <fqdn maps_to="/pp_lexicon/data_elements/fqdn" required='true' />
+            <ip_address maps_to="/pp_lexicon/data_elements/ip_address" required='true' />
+            <mac_address maps_to="/pp_lexicon/data_elements/mac_address" required='true' />
+        </drac>
+
+        <role key="role_id">
+            <role_id required='true' ui_readwrite='true' ui_required= 'true' traffic_control_approval_required='true' label='Role' format='string' />
+
+            <role_name maps_to="/pp_lexicon/data_elements/string" required="true" >
+                <label>Description</label>
+            </role_name>
+			<blessed  maps_to="/pp_lexicon/data_elements/int" >
+                <label>is blessed</label>
+			</blessed>
+        </role>
+		<inv_normalizer key="id">
+            <id>
+                <label>ID</label>
+                <required>true</required>
+                <format>int</format>
+            </id>
+            <entity_name>
+                <label>Entity</label>
+                <required>true</required>
+                <format>string</format>
+            </entity_name>
+            <field_name>
+                <label>Field</label>
+                <required>true</required>
+                <format>string</format>
+            </field_name>
+            <matcher>
+                <label>Regex Matcher</label>
+                <required>true</required>
+                <format>string</format>
+            </matcher>
+            <sub_value>
+                <label>Substitute Value</label>
+                <required>true</required>
+                <format>string</format>
+            </sub_value>
+		</inv_normalizer>
+		<acl key="acl_id">
+			<acl_id label="ID" format="int"/>
+			<acl_group label="Group" format="string" />
+			<entity label="Entity" format="string" />
+			<field label="Field" format="string" />
+			<logic label="Block Logic" format="string" />
+		</acl>
+		<user key="username">
+			<username label="Username" format="string" />
+			<writeaccess label="Write Access" format="bool" />
+			<systemuser label="System User" format="bool" />
+            <sshkey label="SSH Key" format="text" />
+			<groups label="Groups" format="array">
+	            <enumeration>
+	                <enumerator>OPS</enumerator>
+	                <enumerator>IT</enumerator>
+	                <enumerator>QA</enumerator>
+	            </enumeration>
+			</groups>
+		</user>
+		<change_queue key="id">
+			<id label="ID" format="string" />
+			<change_ip label="IP Address" format="string" />
+			<change_user label="User" format="string" />
+			<change_time label="Time" format="string" />
+			<entity label="Entity" format="string" />
+			<entity_key label="Key" format="string" />
+			<change_content label="Change" format="string" />
+		</change_queue>
+		<inv_audit key="entity_key">
+			<change_ip label="IP Address" format="string" />
+			<change_user label="User" format="string" />
+			<change_time label="Time" format="string" />
+			<entity_name label="Entity" format="string" />
+			<entity_key label="Key" format="string" />
+			<field_name label="Field" format="string" />
+			<old_value label="Old Value" format="string" />
+			<new_value label="New Value" format="string" />
+		</inv_audit>
+		<hardware_model key="hardware_class">
+	      <manufacturer maps_to="/pp_lexicon/data_elements/manufacturer" required="true" label='Manufacturer'/>
+	      <product_name maps_to="/pp_lexicon/data_elements/product_name" required="true" label='Product'/>
+	      <hardware_class maps_to="/pp_lexicon/data_elements/product_variant" required="false" label='HW Class'/>
+	      <power_supply_count maps_to="/pp_lexicon/data_elements/power_supply_count" required="false" label='Pwr Supply Count'/>
+	      <power_supply_watts maps_to="/pp_lexicon/data_elements/power_supply_watts" required="false" label='Pwr Supply Watts'/>
+	      <size>
+	         <label>Size (RU)</label>
+	         <format>int</format>
+	         <required>false</required>
+	      </size>
+	   </hardware_model>
+       <instance_size key="id">
+            <id maps_to="/pp_lexicon/data_elements/string" required="true" label='ID'/>
+            <provider maps_to="/pp_lexicon/data_elements/string" required="true" label='Provider'/>
+            <name maps_to="/pp_lexicon/data_elements/string" required="false" label='Size'/>
+            <description maps_to="/pp_lexicon/data_elements/string" required="false" label='Description'/>
+            <cost maps_to="/pp_lexicon/data_elements/string" required="false" label='Price'/>
+        </instance_size>
+        <instance_location key="provider">
+            <provider maps_to="/pp_lexicon/data_elements/string" required="true" label='Provider'/>
+            <data_center_code maps_to="/pp_lexicon/data_elements/string" required="true" label='Data Center'/>
+            <label maps_to="/pp_lexicon/data_elements/string" required="true" label='Label'/>
+            <location maps_to="/pp_lexicon/data_elements/string" required="true" label='Location'/>
+        </instance_location>
+
+    </entities>
+
+
+</pp_lexicon>
