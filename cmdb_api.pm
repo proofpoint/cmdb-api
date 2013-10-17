@@ -735,7 +735,7 @@ sub doProvisionGET()
 		# call setNewName which will rename if it doesn't match
 		$$new{'fqdn'}=$$data[0]{'fqdn'};
 		$$new{'status'}=$$data[0]{'status'};
-		$newname=&setNewName($new, '.ppops.net',0);
+		$newname=&setNewName($new, '.ppops.net');
 		# set the IP for this system since it's coming online from provisioning vlan
 		# validate that the IP is on the provisioning vlan
 		if($$requestObject{'query'}{'ip_address'} && $$requestObject{'query'}{'ip_address'} =~ /10\.\d{1,3}\.25/)
@@ -759,7 +759,7 @@ sub doProvisionGET()
 			return 'missing data (inventory_component_type)';
 		}
 		$$new{'status'}='idle';
-		$newname=&setNewName($new, '.ppops.net',0);
+		$newname=&setNewName($new, '.ppops.net');
 		if($newname=~/ERROR/)
 		{
 			$$requestObject{'stat'}=Apache2::Const::HTTP_FAILED_DEPENDENCY;
@@ -779,87 +779,85 @@ sub doProvisionGET()
 	
 }
 
-# update or insert with hew name.   retry (by self-calling) if fails with newly calculated name
 sub setNewName()
 {
 	my $r=shift;
-    my $suffix=shift || "";
-	my $retry = shift; 
+	my $suffix=shift || "";
 	my ($sql,$parms,$where);
 	my $newname;
 	# check to see if the name is correct or if box is set to production/deployment
-	if($$r{'fqdn'}!~/m\d{7}\.ppops\.net/ && $$r{'status'} ne 'production' &&  $$r{'status'} ne 'deployment' )
-	{
-		$newname=&getNewName() . $suffix;
-	}
-	else
-	{
+	if ($$r{'fqdn'}!~/m\d{7}\.ppops\.net/ && $$r{'status'} ne 'production' &&  $$r{'status'} ne 'deployment' ) {
+		if (defined $$r{'mac_address'}) {
+			$newname = 'temp-' . $$r{'mac_address'};
+			$newname =~ s/://g;
+		} elsif (defined $$r{'serial_number'}) {
+			$newname = 'temp-' . $$r{'serial_number'};
+		} else {
+			return "ERROR: must provide serial number or MAC address";
+		}
+	} else {
 		$newname=$$r{'fqdn'};
 	}
-	
+
 	# fqdn passed in, so updating existing
-	if($$r{'fqdn'})
-	{
+	if ($$r{'fqdn'}) {
 		$sql="update device set fqdn=?";
-		push(@$parms,$newname);		
+		push(@$parms,$newname);
 	}
 	# otherwise trying insert
-	else
-	{
+	else {
 		$sql='insert into device set fqdn=?';
 		push(@$parms,$newname);
 	}
-	foreach my $f (keys(%$r))
-	{
-		if($$r{$f} && $f ne 'fqdn')
-		{
+	foreach my $f (keys(%$r)) {
+		if ($$r{$f} && $f ne 'fqdn') {
 			$sql.=", $f=? ";
 			push(@$parms,$$r{$f});
 		}
 	}
 	# doing device update so adding where clause
-	if($sql =~ /update\ device/)
-	{
+	if ($sql =~ /update\ device/) {
 		$where= " where fqdn=?";
 		push(@$parms,$$r{'fqdn'});
 	}
-	my $sth=$dbh->prepare("$sql$where");
-	$logger->debug("executing: $sql$where with " . join(',',@$parms) ) if ($logger->is_debug());
-	my $rv=$sth->execute(@$parms);
-	$logger->error($sth->err . " : " . $sth->errstr . ", (retry=$retry)") if ($sth->err);
-	if($sth->err == 1062 && $retry > 3)
-	{
-		return "ERROR - database collision on insert " . $sth->errstr;
-	}
-	if($sth->err)
-	{
-		$retry++;
-		&setNewName($r,'',$retry);
-	}
-	else
-	{
-		return $newname;
-	}
-}
 
-# simple query func to determine next new m00 name starting at minimum of m0004000
-sub getNewName()
-{
-	my $sql="SELECT
-	concat('m',
-	lpad(cast(case
-	when (MAX(SUBSTRING(fqdn,3,7)) +0) > 3999
-	then  MAX(SUBSTRING(fqdn,3,7)) + 1
-	else 4000
-	end as char),7,0))
+	my $dbh=DBI->connect("DBI:mysql:database=inventory;host=$DBHOST",
+			     $DBUSER,$DBPASS,{AutoCommit=>0,RaiseError=>1});
+	my $sth;
 
-	as newfqdn
-	FROM
-		device 
-	WHERE
-		fqdn  rlike 'm[[:digit:]][[:digit:]][[:digit:]][[:digit:]][[:digit:]][[:digit:]][[:digit:]]\.'";
-	my $arr=$dbh->selectcol_arrayref($sql);
-	return $$arr[0];
+	eval {
+		$sth = $dbh->prepare("$sql$where");
+		executeDbStatement($sth, $sql, @$parms);
+
+		my $device_id = $sth->{mysql_insertid};
+
+		# We need to generate a name based on the auto-incremented
+		# id column if this is a new device
+		if ($newname =~ /^temp-/) {
+			$newname = sprintf "m%07d", $device_id;
+			$newname .= $suffix;
+
+			$sql = "update device set fqdn=? where id=?";
+			$sth = $dbh->prepare($sql);
+			executeDbStatement($sth, $sql, ($newname, $device_id));
+		}
+
+		$dbh->commit;
+	};
+	if ($@) {
+		my $errstr;
+
+		if (defined $sth && $sth->err) {
+			$errstr = $sth->err . " : " . $sth->errstr;
+			$logger->error($errstr);
+		} else {
+			$errstr = $@;
+		}
+
+		$newname = "ERROR: $errstr";
+	}
+
+	return $newname;
 }
 
 sub doSql(){
