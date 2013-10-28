@@ -31,7 +31,7 @@ use APR::Brigade ();
 use APR::Bucket ();
 use Log::Log4perl qw(:easy);
 use Apache2::Filter ();
-use Apache2::Const -compile => qw(OK HTTP_NOT_FOUND HTTP_OK HTTP_FAILED_DEPENDENCY HTTP_NOT_ACCEPTABLE HTTP_NO_CONTENT HTTP_INTERNAL_SERVER_ERROR DECLINED HTTP_ACCEPTED HTTP_CREATED HTTP_UNAUTHORIZED SERVER_ERROR MODE_READBYTES HTTP_CONFLICT HTTP_FORBIDDEN);
+use Apache2::Const -compile => qw(OK HTTP_NOT_FOUND HTTP_OK HTTP_FAILED_DEPENDENCY HTTP_NOT_ACCEPTABLE HTTP_NO_CONTENT HTTP_INTERNAL_SERVER_ERROR DECLINED HTTP_ACCEPTED HTTP_CREATED HTTP_UNAUTHORIZED SERVER_ERROR MODE_READBYTES HTTP_CONFLICT HTTP_FORBIDDEN HTTP_METHOD_NOT_ALLOWED);
 use APR::Const    -compile => qw(SUCCESS BLOCK_READ);
 use constant IOBUFSIZE => 8192;
 use JSON;
@@ -44,17 +44,18 @@ use Optconfig;
 use DBI;
 
 my $opt = Optconfig->new('inv_api', { 'driver=s' => 'mysql',
-                                      'dbuser=s' => 'cmdb',
-                                      'dbpass=s' => 'password',
+                                      'dbuser=s' => 'dbuser',
+                                      'dbpass=s' => 'dbpass',
                                       'dbhost' => 'localhost',
                                       'debug' => 1,
-                                      'prism_domain' => 'example.com',
+                                      'prism_domain' => 'prism.ppops.net',
                                       'logconfig' => '/var/www/inv_api/log4perl.conf',
                                       'lexicon' => '/var/www/inv_api/pp_lexicon.xml',
                                       'entities' => {
                                       		acl=>'Acl',
 											vip=>'Generic',
 											datacenter_subnet=>'Generic',
+											data_center=>'Generic',
 											role=>'Generic',
 											pod_cluster=>'Generic',
 											snat=>'Generic',
@@ -87,12 +88,19 @@ my $opt = Optconfig->new('inv_api', { 'driver=s' => 'mysql',
 											service_instance=>'Generic',
 											service_instance_data=>'Generic',
 											instance_size=>'Generic',
-										    instance_location=>'Generic',
-										    column_lkup=>'Column_lkup'
-
+									        instance_location=>'Generic',
+									        column_lkup=>'Column_lkup',
+					     					environments=>'Environments'
                                       }
                                     });
 
+my $valid_entity_apis={
+	'Environments' => 1,
+	'ChangeQueue' => 1,
+	'System' => 1,
+	'Generic' => 1,
+	'Audit' => 1
+};
 
 ##TODO unhardcode this crap
 my @system_native_fields=qw(fqdn inventory_component_type system_type status ip_address
@@ -193,8 +201,8 @@ foreach(keys(%{$tree_extended->{entities}}))
 		}
 	}
 }
-$logger->debug("lexicon: " . &make_json($tree,{pretty=>1}) ) if ($logger->is_debug());
-$logger->debug("lexicon extended: " . &make_json($tree_extended,{pretty=>1}) ) if ($logger->is_debug());
+$logger->debug("lexicon: " . &make_json($tree,{pretty=>1,allow_nonref=>1}) ) if ($logger->is_debug());
+$logger->debug("lexicon extended: " . &make_json($tree_extended,{pretty=>1,allow_nonref=>1}) ) if ($logger->is_debug());
 
 sub lkupXMLPath()
 {
@@ -244,7 +252,7 @@ sub handler() {
 		$$requestObject{'entity'}=shift(@{$$requestObject{'path'}});	
 		$logger->debug(&make_json($requestObject,{pretty=>1,allow_nonref=>1,allow_blessed=>1})) if ($logger->is_debug());
 		# do help if it was asked
-		if( exists $requestObject->{'query'}->{'help'} )
+		if( exists $requestObject->{'query'}->{'help'} || exists $requestObject->{'query'}->{'lexicon'})
 		{
 			$requestObject->{'help'}=1;
 			if(!$requestObject->{'requested_api'})
@@ -256,17 +264,41 @@ sub handler() {
 			elsif( !$requestObject->{'entity'})
 			{
 				my $ents=[];
-				foreach(keys(%$valid_entities))
+				my $lex={};
+				if($requestObject->{'query'}->{'lexicon'})
 				{
-					push(@$ents,$_) if ($valid_entities->{$_} eq 'Generic' || $valid_entities->{$_} eq 'System' );
+					foreach(keys(%$valid_entities))
+					{
+						$lex->{$_}= $tree->{entities}->{$_};
+						no strict 'refs';
+						# check each attribute and populate enumerations if needed
+						foreach my $attr (keys(%{$lex->{$_}}))
+						{
+							if($lex->{$_}->{$attr} && ref($lex->{$_}->{$attr}) eq 'HASH' && 
+								defined $lex->{$_}->{$attr}->{'enumeration'} && 
+								defined $lex->{$_}->{$attr}->{'enumeration'}->{'entity'} && 
+								defined $lex->{$_}->{$attr}->{'enumeration'}->{'attribute'})
+							{
+								$lex->{$_}->{$attr}->{'enumeration'}->{'enumerator'}=&doColumn_lkupGET($requestObject,$lex->{$_}{$attr}{'enumeration'}{'entity'},$lex->{$_}{$attr}{'enumeration'}->{'attribute'});
+							}
+						}
+					}					
+					$r->print(&make_json($lex));
 				}
-				$r->print(&make_json($ents));
+				else
+				{
+					foreach(keys(%$valid_entities))
+					{
+						push(@$ents,$_) if ( $valid_entity_apis->{ $valid_entities->{$_} } == 1 );
+					}					
+					$r->print(&make_json($ents));
+				}
     			return Apache2::Const::OK;
 			}
 			else
 			{
 				#$r->print(&make_json(&getFieldList($requestObject->{'entity'})));
-				$r->print(&make_json( $tree->{entities}->{$requestObject->{'entity'}}, {pretty => 1}));
+				$r->print(&make_json( $tree->{entities}->{$requestObject->{'entity'}}, {pretty => 1,allow_nonref=>1}));
     			return Apache2::Const::OK;
 			}
 
@@ -487,8 +519,8 @@ sub ProcessRequest()
 sub doColumn_lkupGET()
 {
 	my $requestObject=shift;
-	my $entity=$$requestObject{'path'}[0];
-	my $col=$$requestObject{'path'}[1];
+	my $entity=shift || $$requestObject{'path'}[0];
+	my $col=shift || $$requestObject{'path'}[1];
 
 	my %lkup;
 	if($entity eq 'system')
@@ -496,9 +528,9 @@ sub doColumn_lkupGET()
 		$entity = 'device';
 	}
 	my $entity_fields=&getFieldList($entity);
-$logger->warn("$entity field list: " . join (',',@$entity_fields));
+$logger->info("$entity field list: " . join (',',@$entity_fields));
 	foreach (@$entity_fields) { $lkup{$_}++;}
-$logger->warn('doing col lkup for ' . $entity . '-> ' . $col);
+$logger->info('doing col lkup for ' . $entity . '-> ' . $col);
 
 	my $sql;
 	if($lkup{$col})
@@ -512,13 +544,8 @@ $logger->warn('doing col lkup for ' . $entity . '-> ' . $col);
 	my $res=$dbh->selectcol_arrayref($sql,{},($col));
 	my @new;
 
-	foreach(@$res){$_=~s/\"//g;push(@new,[$_]) if $_;}
+	foreach(@$res){$_=~s/\"//g;push(@new,$_) if $_;}
 
-	# if( $q->param('output') eq 'text')
-	# {
-	# 	print join("\n",@$res);
-	# 	exit;
-	# } 
 	return \@new;
 }
 
@@ -1061,7 +1088,7 @@ sub doGenericPOST
 		{
 			$$data{$f}=&doFieldNormalization($entity,$f,$$data{$f});
 			push(@$parms,$$data{$f});
-			push(@sql,"$f=?")
+			push(@sql,"$f=?");
 		}
 	}
 	my $sql_set=join(',',@sql);	
@@ -1506,6 +1533,656 @@ sub doGenericDELETE
 		
 	}
 	
+}
+
+sub parseQueryParams
+{
+	my ($data, $getparams, $valid_fields) = @_;
+
+        my @ranges=split(/[&;]/, $data);
+        foreach my $range (@ranges) {
+#			next unless $range =~ /(\w+)([!~>=<]+)(.+)/;
+			next unless $range =~ /(\w+)([!~>=<]+)(.*)/;
+            my $key = $1;
+            my $op = $2;
+            my $val = $3;
+            next if $key =~ /^_/;
+			next unless (grep(/^$key$/,@$valid_fields));
+            $val =~ s/'//g;
+			$op = 'LIKE' if $op eq '=';
+			$op = 'NOT LIKE' if $op eq '!=';
+			$op = 'RLIKE' if $op eq '~';
+			$op = 'NOT RLIKE' if $op eq '!~';
+            $logger->debug("Found param: $key $op $val") if ($logger->is_debug());
+			$$getparams{$key}{op}=$op;
+			$$getparams{$key}{val}=$val;
+	}
+
+	return $getparams;
+}
+
+sub doEnvironmentsServicesGET() {
+	my $requestObject=shift;
+	my $environment;
+	my $service;
+	my @parents;
+	my @params;
+	my %getparams;
+	my %hash;
+	my $environment_tag;
+
+	$environment = $requestObject->{'path'}[0];
+	$service = $requestObject->{'path'}[2];
+
+	my $sql = "select name, environment_name from service_instance " .
+	          "where type='environment'";
+
+	my $rtn = &doSql($sql, undef);
+	if ($$rtn{'err'}) {
+		$$requestObject{'stat'}=Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
+		return $$rtn{'err'} . " : " . $$rtn{'errstr'};
+	}
+
+	if ($requestObject->{'getparams'}) {
+		@params = split(/[&;]/, $requestObject->{'getparams'});
+		parseQueryParams($requestObject->{'getparams'}, \%getparams,
+		                 [ 'type', 'name' ]);
+	}
+
+	$environment_tag = 1 if defined $requestObject->{'query'}->{'_tag_environment'};
+
+	for my $env (@{$rtn->{'data'}}) {
+		my $parent = $env->{'environment_name'};
+		my $name = $env->{'name'};
+
+		if ($parent eq $name) {
+			$parent = undef;
+		}
+
+		$hash{$name} = $parent;
+	}
+
+	$parents[0] = $environment;
+	while (defined $parents[-1]) {
+		push @parents, $hash{$parents[-1]};
+	}
+	pop @parents;
+
+	%hash = ();
+	my $list = join(', ', map { "'$_'" } @parents);
+	$sql = "select name, environment_name, type, data_key, data_value from " .
+	       " (select name, environment_name, svc_id, type from service_instance " .
+	       "  where type != 'environment' ";
+
+	if (defined $service) {
+		$sql .= "and name like '$service' ";
+	}
+	
+	for my $key (keys %getparams) {
+		$sql .= sprintf "and %s %s '%s' ",
+			$key,
+			$getparams{$key}{op},
+			$getparams{$key}{val};
+	}
+
+	$sql .= "and environment_name in ($list)) as s " .
+	        "left join service_instance_data as d on s.svc_id = d.svc_id " .
+	        "order by field(environment_name, $list)";
+
+	$rtn = &doSql($sql, undef);
+	if ($$rtn{'err'}) {
+		$$requestObject{'stat'}=Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
+		return $$rtn{'err'} . " : " . $$rtn{'errstr'};
+	}
+
+	for my $data (@{$rtn->{'data'}}) {
+		if (not exists $hash{$data->{'name'}}) {
+			$hash{$data->{'name'}} = {
+						  name => $data->{'name'},
+						  environment_name => $data->{'environment_name'},
+						  type => $data->{'type'},
+						  };
+		}
+
+		my $svc = $hash{$data->{'name'}};
+		my $key = $data->{'data_key'};
+		my $value = $data->{'data_value'};
+	 	next if ((not defined $key) || exists $svc->{$key});
+
+		if ($environment_tag) {
+			$svc->{$key} = { value => $value,
+					 environment_name =>
+					$data->{'environment_name'} };
+		} else {
+			$svc->{$key} = $value;
+		}
+	}
+
+	if (scalar(keys %hash) == 1) {
+		return (values %hash)[0];
+	} elsif (keys %hash) {
+		return [values %hash];
+	} else {
+		$$requestObject{'stat'}=Apache2::Const::HTTP_NOT_FOUND;
+		return;
+	}
+}
+
+sub insertAuditEntry {
+	my ($dbh, $requestObject, $entity, $key,
+	    $name, $old, $new, $time) = @_;
+
+	my $sql = 'insert into inv_audit set
+		entity_name=?,
+		entity_key=?,
+		field_name=?,
+		old_value=?,
+		new_value=?,
+		change_time=?,
+		change_user=?,
+		change_ip=?';
+
+	$dbh->do($sql, {}, ($entity, $key, $name,
+			    $old, $new, $time,
+			    $requestObject->{user}->{username},
+			    $$requestObject{ip_address}));
+}
+
+sub executeDbStatement {
+	my ($sth, $sql, @parms) = @_;
+
+	if ($logger->is_debug()) {
+		my $msg;
+
+		if (@parms) {
+			$msg = "executing: $sql with " . join(',', @parms);
+		} else {
+			$msg = "executing: $sql"
+		}
+
+		$logger->debug($msg);
+	}
+
+	return $sth->execute(@parms);
+}
+
+sub doEnvironmentsServicesPUT(){
+	my $requestObject=shift;
+	$logger->info("processing PUT");
+	my $dbh=DBI->connect("DBI:mysql:database=inventory;host=$DBHOST",
+			     $DBUSER,$DBPASS,{AutoCommit=>0,RaiseError=>1});
+	my $environment = $requestObject->{'path'}[0];
+	my $service = $requestObject->{'path'}[2];
+	my $data=&eat_json($$requestObject{'body'},{allow_nonref=>1});
+	my $blocked_changes={};
+	my $svc_id;
+	my $sth;
+	my $lkup_data;
+	my @inserts;
+	my @updates;
+	my @deletes;
+	my %service_updates;
+	my %service_attributes;
+	my $sql;
+	my $error;
+	my $old_value;
+	my $new_value;
+	my $did_update;
+
+	eval {
+		# Get service_instance record for the requested service
+		$sql = "select svc_id,type,name,environment_name,note from service_instance where environment_name=? and name=?";
+		$sth = $dbh->prepare($sql);
+		executeDbStatement($sth, $sql, $environment, $service);
+		$lkup_data = $sth->fetchall_arrayref({}, undef);
+
+		if ($sth->rows == 0) {
+			$$requestObject{'stat'}=Apache2::Const::HTTP_NOT_FOUND;
+			$dbh->rollback;
+			$error = 'There is no resource at this location';
+			return;
+		} elsif ($sth->rows > 1) {
+			$$requestObject{'stat'} = Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
+			$dbh->rollback;
+			$error = 'Multiple services with the same ID';
+			return;
+		}
+
+		$old_value = &doEnvironmentsServicesGET($requestObject);
+
+		&runACL($requestObject,{},'services',$data,$blocked_changes);
+		# if the user is not a system user, then error out now if needed
+		$logger->info("blocked PUT fields: " . &make_json($blocked_changes) );
+		my $now=$dbh->selectcol_arrayref('select now()');
+		if ($requestObject->{'user'}->{'systemuser'} ne '1' &&
+		    scalar(keys(%$blocked_changes))) {
+			$$requestObject{'stat'}=Apache2::Const::HTTP_FORBIDDEN;
+			$dbh->rollback;
+			$error = 'ACL blocked change: ' . &make_json($blocked_changes);
+			return;
+		}
+
+		$lkup_data = $$lkup_data[0];
+		$svc_id = $lkup_data->{'svc_id'};
+
+		# Determine if we need to modify any fields of the service instance record
+
+		for my $f (&getFieldList('service_instance')) {
+			my $value = $lkup_data->{$f};
+			if (defined $value && $value ne $data->{$f}) {
+				$service_updates{$f} = [ $value, $data->{$f} ];
+			}
+
+			delete $data->{$f}; #ICK
+		}
+		delete $data->{'svc_id'}; #ICK
+
+
+		# Get all service_instance_data records that belong to this instance
+		# We don't care about inheritance for this
+		$sql = "select data_id,data_key,data_value " .
+		  "from service_instance_data where svc_id=?";
+		$sth = $dbh->prepare($sql);
+		executeDbStatement($sth, $sql, $svc_id);
+		$lkup_data = $sth->fetchall_arrayref({}, undef);
+
+		#populate lookup data into a structure of the service_instance for reference
+		for my $row (@$lkup_data) {
+			$service_attributes{$row->{'data_key'}} =
+			  [ $row->{'data_value'}, $row->{'data_id'} ];
+		}
+
+		my $field_list=&getFieldList('service_instance');
+		for my $key (keys %$data) {
+			#skip if a native service_instance field
+			if(grep(/^$key$/,@$field_list)){
+				next;
+			}
+			if (exists $service_attributes{$key}) {
+				if (not defined $data->{$key}) {
+					push @deletes, $key;
+				} elsif ($service_attributes{$key}[0] ne
+					 $data->{$key}) {
+					push @updates, $key;
+				}
+			} else {
+				push @inserts, $key;
+			}
+		}
+
+
+		if (keys %service_updates) {
+			my $sql_set;
+			my @parms;
+
+			$sql_set = join(', ', map { "$_=?" } keys %service_updates);
+			for my $key (keys %service_updates) {
+				push @parms, $service_updates{$key}[1];
+			}
+			push @parms, $svc_id;
+
+			$sql="update service_instance set $sql_set";
+			$sql .= " where svc_id=?";
+
+			$sth = $dbh->prepare($sql);
+			executeDbStatement($sth, $sql, @parms);
+			$did_update = 1;
+		}
+
+		if (@inserts) {
+			# Create any new service_instance_data records
+			$sql = "insert into service_instance_data " .
+			  "(data_key, data_value, svc_id) values ";
+			$sql .= join(',', map {sprintf("('%s','%s','%s')",
+		                     $_, $data->{$_}, $svc_id)} @inserts);
+
+			$sth = $dbh->prepare($sql);
+			executeDbStatement($sth, $sql);
+			$did_update = 1;
+		}
+
+		if (@updates) {
+			# Modify existing service_instance_data records
+			$sql = "update service_instance_data set " .
+			  "data_value=? where data_key=? and svc_id=?";
+			$sth = $dbh->prepare($sql);
+
+
+			for my $key (@updates) {
+				executeDbStatement($sth, $sql, $data->{$key}, $key, $svc_id);
+			}
+			$did_update = 1;
+		}
+
+		if (@deletes) {
+			$sql = "delete from service_instance_data where " .
+			  "svc_id=? and data_key in ";
+			$sql .= '(' . join(',', map { "'$_'" } @deletes) . ')';
+			$sth = $dbh->prepare($sql);
+
+			executeDbStatement($sth, $sql, $svc_id);
+			$did_update = 1;
+		}
+
+		$new_value = &doEnvironmentsServicesGET($requestObject);
+		if ($did_update) {
+			insertAuditEntry($dbh, $requestObject, 'services',
+					"$environment/$service", 'record',
+			                substr(make_json($old_value),0,100). '...',
+			                substr(make_json($new_value),0,100). '...',
+					$$now[0]);
+		}
+
+		$dbh->commit;
+	};
+	  if ($@) {
+		  my $errstr;
+
+		  if (defined $sth && $sth->err) {
+			  $errstr = $sth->err . " : " . $sth->errstr;
+			  $logger->error($errstr);
+		  } else {
+			  $errstr = $@;
+		  }
+
+		  $$requestObject{'stat'} =
+		    Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
+
+		  eval { $dbh->rollback; };
+
+		  return $errstr;
+	  }
+
+	if (defined $error) {
+		return $error;
+	} else {
+		return $new_value;
+	}
+}
+
+sub doEnvironmentsServicesPOST(){
+	my $requestObject=shift;
+	$logger->info("processing POST");
+	my $dbh=DBI->connect("DBI:mysql:database=inventory;host=$DBHOST",
+			     $DBUSER,$DBPASS,{AutoCommit=>0,RaiseError=>1});
+	my $environment = $requestObject->{'path'}[0];
+	my $service = $requestObject->{'path'}[2];
+	my $data=&eat_json($$requestObject{'body'},{allow_nonref=>1});
+	my $blocked_changes={};
+	my $svc_id;
+	my $sth;
+	my $lkup_data;
+	my %service_updates;
+	my %service_attributes;
+	my $sql;
+	my $error;
+
+	# FIXME: should this be how we handle this?  No point in specifying either
+	# of these attributes in the request.
+	delete $data->{svc_id};
+	$data->{name} = $service;
+	$data->{'environment_name'} = $environment;
+
+	if (not defined $service) {
+		# FIXME: what's the best way to handle this? Is this the correct
+		# status code
+		$$requestObject{'stat'} = Apache2::Const::HTTP_NOT_ACCEPTABLE;
+		return 'Service name required';
+	}
+
+	eval {
+		# Get service_instance record for the requested service
+		$sql = "select svc_id from service_instance where environment_name=? and name=?";
+		$sth = $dbh->prepare($sql);
+		executeDbStatement($sth, $sql, $environment, $service);
+		$lkup_data = $sth->fetchall_arrayref({}, undef);
+
+		if ($sth->rows) {
+			# FIXME: what's the best way to handle this? should we be able to
+			# turn a POST into a PUT?  Is this the correct status code to use?
+			$dbh->rollback;
+			$$requestObject{'stat'} = Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
+			$error = 'Service already exists';
+			return;
+		}
+
+		&runACL($requestObject,{},'services',$data,$blocked_changes);
+		# if the user is not a system user, then error out now if needed
+		$logger->info("blocked PUT fields: " . &make_json($blocked_changes) );
+		my $now=$dbh->selectcol_arrayref('select now()');
+		if ($requestObject->{'user'}->{'systemuser'} ne '1' &&
+		    scalar(keys(%$blocked_changes))) {
+			$$requestObject{'stat'}=Apache2::Const::HTTP_FORBIDDEN;
+			$dbh->rollback;
+			return 'ACL blocked change: ' . &make_json($blocked_changes);
+		}
+
+		my @columns;
+		my @values;
+
+		for my $field (qw/name environment_name type notes/) {
+			if (defined $data->{$field}) {
+				push @columns, $field;
+				push @values, $data->{$field};
+				delete $data->{$field};
+			}
+		}
+
+		# Create service_instance record
+		$sql = sprintf("insert into service_instance (%s) values (%s)",
+			       join(', ', @columns), join(', ', map { "'$_'" } @values));
+		$sth = $dbh->prepare($sql);
+		executeDbStatement($sth, $sql);
+		$svc_id = $sth->{mysql_insertid};
+
+		# Create service_instance_data records
+		$sql = "insert into service_instance_data " .
+		  "(svc_id, data_key, data_value) values ";
+
+		
+		$sql .= join(',', map {sprintf("('%s','%s','%s')",
+					       $svc_id, $_, $data->{$_})} keys %$data);
+
+		$sth = $dbh->prepare($sql);
+		executeDbStatement($sth, $sql);
+
+		insertAuditEntry($dbh, $requestObject, 'services', "$environment/$service",
+				 'record', '', 'CREATED', $$now[0]);
+		$dbh->commit;
+	};
+	if ($@) {
+		my $errstr;
+
+		if ($sth->err) {
+			$errstr = $sth->err . " : " . $sth->errstr;
+			$logger->error($errstr);
+		} else {
+			$errstr = $@;
+		}
+
+		$$requestObject{'stat'} =
+		  Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
+
+		eval { $dbh->rollback; };
+
+		return $errstr;
+	}
+
+
+	return $error if (defined $error);
+
+	$$requestObject{'headers_out'}=['Location',"/inv_api/v1/environments/" .
+					$environment . "/services/" .
+					$service];
+	return;
+}
+
+sub doEnvironmentsServicesDELETE(){
+	my $requestObject=shift;
+	$logger->info("processing DELETE");
+	my $dbh=DBI->connect("DBI:mysql:database=inventory;host=$DBHOST",
+			     $DBUSER,$DBPASS,{AutoCommit=>0,RaiseError=>1});
+	my $environment = $requestObject->{'path'}[0];
+	my $service = $requestObject->{'path'}[2];
+	my $blocked_changes={};
+	my $svc_id;
+	my $sth;
+	my $lkup_data;
+	my %service_updates;
+	my %service_attributes;
+	my $sql;
+	my $error;
+	my $old_value;
+
+	eval {
+		# Get service_instance record for the requested service
+		$sql = "select svc_id from service_instance where environment_name=? and name=?";
+		$sth = $dbh->prepare($sql);
+		executeDbStatement($sth, $sql, $environment, $service);
+		$lkup_data = $sth->fetchall_arrayref({}, undef);
+
+
+		if ($sth->rows == 0) {
+			# FIXME: what's the best way to handle this? should we be able to
+			# turn a POST into a PUT?  Is this the correct status code to use?
+			$$requestObject{'stat'} = Apache2::Const::HTTP_NOT_FOUND;
+			$dbh->rollback;
+			$error = 'There is no resource at this location';
+			return;
+		}
+
+		$svc_id = $$lkup_data[0]->{'svc_id'};
+
+		&runACL($requestObject,$lkup_data,'services',{},$blocked_changes);
+		# if the user is not a system user, then error out now if needed
+		$logger->info("blocked DELETE operation: " . &make_json($blocked_changes) );
+		if ($requestObject->{'user'}->{'systemuser'} ne '1' &&
+		    scalar(keys(%$blocked_changes))) {
+			$$requestObject{'stat'}=Apache2::Const::HTTP_FORBIDDEN;
+			$dbh->rollback;
+			$error = 'ACL blocked Delete: ' . &make_json($blocked_changes);
+			return;
+		}
+		my $now=$dbh->selectcol_arrayref('select now()');
+
+		$old_value = &doEnvironmentsServicesGET($requestObject);
+
+		$sql = "delete from service_instance where svc_id=?";
+		$sth = $dbh->prepare($sql);
+		executeDbStatement($sth, $sql, $svc_id);
+
+		insertAuditEntry($dbh, $requestObject, 'services',
+				 "$environment/$service",
+				 'record',
+				 substr(make_json($old_value),0,100). '...',
+				 'DELETED', $$now[0]);
+		$dbh->commit;
+	};
+	if ($@) {
+		my $errstr;
+
+		if ($sth->err) {
+			$errstr = $sth->err . " : " . $sth->errstr;
+			$logger->error($errstr);
+		} else {
+			$errstr = $@;
+		}
+
+		$$requestObject{'stat'} =
+		  Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
+
+		eval { $dbh->rollback; };
+
+		return $errstr;
+	}
+
+	if (defined $error) {
+		return $error;
+	} else {
+		return;
+	}
+}
+
+sub doEnvironmentsGET(){
+	my $requestObject=shift;
+	my @path = @{$requestObject->{'path'}};
+	my @parms;
+	my $environment;
+	my $service;
+	my $get_services = 0;
+
+	if ($path[1] eq 'services') {
+		return &doEnvironmentsServicesGET($requestObject);
+	} elsif ($path[1]) {
+		$$requestObject{'stat'}=Apache2::Const::HTTP_NOT_FOUND;
+	} else {
+		return &doGenericGET($requestObject);
+	}
+}
+
+sub doEnvironmentsPUT(){
+	my $requestObject=shift;
+	my @path = @{$requestObject->{'path'}};
+	my @parms;
+	my $environment;
+	my $service;
+	my $get_services = 0;
+
+	$environment = $path[0];
+	$service = $path[2];
+
+	if ($path[1] eq 'services') {
+		if (defined $service) {
+			return &doEnvironmentsServicesPUT($requestObject);
+		} else {
+			$$requestObject{'stat'}=Apache2::Const::HTTP_METHOD_NOT_ALLOWED;
+		}
+	} elsif ($path[1]) {
+		$$requestObject{'stat'}=Apache2::Const::HTTP_NOT_FOUND;
+	} else {
+		return &doGenericPUT($requestObject);
+	}
+}
+
+sub doEnvironmentsPOST(){
+	my $requestObject=shift;
+	my @path = @{$requestObject->{'path'}};
+	my @parms;
+	my $get_services = 0;
+
+	my $environment = $path[0];
+	my $service = $path[2];
+
+
+	if ($path[1] eq 'services') {
+		return &doEnvironmentsServicesPOST($requestObject);
+	} elsif ($path[1]) {
+		$$requestObject{'stat'}=Apache2::Const::HTTP_NOT_FOUND;
+	} else {
+		return &doGenericPOST($requestObject);
+	}
+}
+
+sub doEnvironmentsDELETE(){
+	my $requestObject=shift;
+	my @path = @{$requestObject->{'path'}};
+	my @parms;
+	my $get_services = 0;
+
+	my $environment = $path[0];
+	my $service = $path[2];
+
+	if ($path[1] eq 'services') {
+		if (defined $service) {
+			return &doEnvironmentsServicesDELETE($requestObject);
+		} else {
+			$$requestObject{'stat'}=Apache2::Const::HTTP_METHOD_NOT_ALLOWED;
+		}
+	} elsif ($path[1]) {
+		$$requestObject{'stat'}=Apache2::Const::HTTP_NOT_FOUND;
+	} else {
+		return &doGenericDELETE($requestObject);
+	}
 }
 
 # special functions to handle device and systems
