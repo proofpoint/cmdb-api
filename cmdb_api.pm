@@ -16,7 +16,7 @@
 # limitations under the License.
 ############
 
-package inv_api;
+package cmdb_api;
 use strict;
 use warnings;
 use lib '/opt/pptools';
@@ -43,14 +43,14 @@ use Date::Manip;
 use Optconfig;
 use DBI;
 
-my $opt = Optconfig->new('inv_api', { 'driver=s' => 'mysql',
+my $opt = Optconfig->new('cmdb_api', { 'driver=s' => 'mysql',
                                       'dbuser=s' => 'dbuser',
                                       'dbpass=s' => 'dbpass',
                                       'dbhost' => 'localhost',
                                       'debug' => 1,
                                       'prism_domain' => 'prism.ppops.net',
-                                      'logconfig' => '/var/www/inv_api/log4perl.conf',
-                                      'lexicon' => '/var/www/inv_api/pp_lexicon.xml',
+                                      'logconfig' => '/var/www/cmdb_api/log4perl.conf',
+                                      'lexicon' => '/var/www/cmdb_api/pp_lexicon.xml',
                                       'entities' => {
                                       		acl=>'Acl',
 											vip=>'Generic',
@@ -120,7 +120,7 @@ my $log_config_file=$opt->{'logconfig'};
 
 Log::Log4perl::init($log_config_file);
 
-my $logger = Log::Log4perl->get_logger('inventory.inv_api');
+my $logger = Log::Log4perl->get_logger('inventory.cmdb_api');
 unless($lexicon)
 {
 #TODO this hardcoded path is bad fix it	
@@ -246,7 +246,7 @@ sub handler() {
 		$$requestObject{'body'}='';
 	}
 	shift(@{$$requestObject{'path'}});
-	if(shift(@{$$requestObject{'path'}}) eq 'inv_api')
+	if(shift(@{$$requestObject{'path'}}) eq 'cmdb_api')
 	{
 	    $$requestObject{'requested_api'}=shift(@{$$requestObject{'path'}});
 		$$requestObject{'entity'}=shift(@{$$requestObject{'path'}});	
@@ -1130,7 +1130,7 @@ sub doGenericPOST
 		$$requestObject{'stat'}=Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;	
 		return $sth->err . " : " . $sth->errstr;		
 	}
-	$$requestObject{'headers_out'}=['Location',"/inv_api/v1/" . $entity . "/" . $$data{$tree->{entities}->{$$requestObject{'entity'}}->{key}}];
+	$$requestObject{'headers_out'}=['Location',"/cmdb_api/v1/" . $entity . "/" . $$data{$tree->{entities}->{$$requestObject{'entity'}}->{key}}];
 	return;
 }
 
@@ -1190,7 +1190,7 @@ sub doAclPOST {
 		$$requestObject{'stat'}=Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;	
 		return $sth->err . " : " . $sth->errstr;		
 	}
-	$$requestObject{'headers_out'}=['Location',"/inv_api/v1/acl/" . $$data{'acl_id'}];
+	$$requestObject{'headers_out'}=['Location',"/cmdb_api/v1/acl/" . $$data{'acl_id'}];
 	return;
 
 
@@ -2011,7 +2011,7 @@ sub doEnvironmentsServicesPOST(){
 
 	return $error if (defined $error);
 
-	$$requestObject{'headers_out'}=['Location',"/inv_api/v1/environments/" .
+	$$requestObject{'headers_out'}=['Location',"/cmndb_api/v1/environments/" .
 					$environment . "/services/" .
 					$service];
 	return;
@@ -2617,7 +2617,7 @@ sub doSystemPOST(){
 	else
 	{
 		$dbs->commit;
-		$$requestObject{'headers_out'}=['Location',"/inv_api/v1/system/$fqdn"];
+		$$requestObject{'headers_out'}=['Location',"/cmdb_api/v1/system/$fqdn"];
 	}
 	return;
 	
