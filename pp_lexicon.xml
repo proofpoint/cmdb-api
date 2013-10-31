@@ -16,69 +16,8 @@
 # limitations under the License.
 -->
 <pp_lexicon version="1.2.1">
-    <data_elements>
-        <fqdn>
-            <label>Name</label>
-            <flavor>config</flavor>
-            <format>string</format>
-            <fact>fqdn</fact>
-        </fqdn>
-        <!-- BEGIN: Ultra generic data types to validate -->
-        <string>
-            <format>string</format>
-        </string>
-        <int>
-            <format>int</format>
-            <validation>
-                <is_int/>
-            </validation>
-        </int>
-        <bool>
-            <format>bool</format>
-            <validation>
-                <is_bool/>
-            </validation>
-        </bool>
-        <float>
-            <format>float</format>
-            <validation>
-                <is_float/>
-            </validation>
-        </float>
-        <date>
-            <format>string</format>
-        </date>
-        <int_timestamp>
-            <format>int</format>
-            <validation>
-                <is_int/>
-                <regex>/^\d{9,10}$/</regex>
-            </validation>
-        </int_timestamp>
-        <!-- END: Ultra generic data types to validate -->
-    </data_elements>
     <!-- These are the top level inventory API objects -->
     <entities>
-        <grouping key="grouping_id">
-            <grouping_id maps_to="/pp_lexicon/data_elements/int" required="true"/>
-            <grouping_name maps_to="/pp_lexicon/data_elements/string" required="true"/>
-            <pp_product_group>
-                <flavor>config</flavor>
-                <required>false</required>
-                <format>string</format>
-                <enumeration>
-                    <enumerator>E-Mail Security</enumerator>
-                    <enumerator>Archiving</enumerator>
-                    <enumerator>Hosted Mail</enumerator>
-                    <enumerator>Internal</enumerator>
-                    <enumerator>Infrastructure</enumerator>
-                    <enumerator>Other</enumerator>
-                </enumeration>
-                <validation>
-                    <member_of>../enumeration</member_of>
-                </validation>
-            </pp_product_group>
-        </grouping>
         <device_ip key="ip_address">
             <ip_address>
                 <label>IP</label>
@@ -341,13 +280,7 @@
                 <format>string</format>
             </config>
         </snat>
-        <vips key="grouping_id,vip_address">
-            <grouping_id maps_to="/pp_lexicon/entities/grouping/grouping_id" required="false"/>
-            <vip_address type="array">
-                <vip map_to="/pp_lexicon/entities/vip"/>
-            </vip_address>
-        </vips>
-        <data_center key="data_center_code">
+        <data_center key="data_center_code" field_order="data_center_code,valid_ip_ranges,data_center_vendor,data_center_city,data_center_country,data_center_telephone">
             <data_center_code>
                 <label>Datacenter</label>
                 <flavor>fact</flavor>
@@ -361,7 +294,7 @@
             <data_center_telephone label="Phone"/>
             <valid_ip_ranges label="IP Ranges"/>
         </data_center>
-        <datacenter_subnet key="id">
+        <datacenter_subnet key="id" field_order="id,subnet,ipv6_subnet,data_center_code,nodes,az_id">
             <id>
                 <label>ID</label>
                 <flavor>config</flavor>
@@ -399,11 +332,10 @@
             <cage_code flavor="fact" maps_to="/pp_lexicon/entities/cage/cage_code" required="true"/>
             <rack_code maps_to="/pp_lexicon/data_elements/string" required="false"/>
         </rack>
-        <service_instance key="svc_id">
+        <service_instance key="svc_id" field_order="svc_id,name,type,note,environment_name">
             <svc_id label="SVC ID" maps_to="/pp_lexicon/data_elements/int" required="true"/>
             <name label="SVC Name" maps_to="/pp_lexicon/data_elements/string" required="true"/>
             <type label="Type" maps_to="/pp_lexicon/data_elements/string" required="false"/>
-            <subtype label="SubType" maps_to="/pp_lexicon/data_elements/string" required="false"/>
             <note label="Note" maps_to="/pp_lexicon/data_elements/string" required="false"/>
             <environment_name label="Environment" maps_to="/pp_lexicon/data_elements/string" required="false"/>
         </service_instance>
@@ -414,13 +346,13 @@
             <data_value label="Value" maps_to="/pp_lexicon/data_elements/string" required="true"/>
         </service_instance_data>
         <device key="fqdn">
-            <fqdn required="true">
+            <fqdn field_category="main" required="true">
                 <label>Name</label>
                 <flavor>config</flavor>
                 <format>string</format>
                 <fact>fqdn</fact>
             </fqdn>
-            <inventory_component_type required="true">
+            <inventory_component_type field_category="main" required="true">
                 <label>Type</label>
                 <flavor>config</flavor>
                 <format>string</format>
@@ -449,7 +381,7 @@
                 <format>string</format>
                 <fact>serial_number</fact>
             </serial_number>
-            <system_type required="false">
+            <system_type field_category="main" required="false">
                 <label>Business</label>
                 <flavor>config</flavor>
                 <format>string</format>
@@ -464,7 +396,7 @@
                     <is_string/>
                 </validation>
             </system_type>
-            <ip_address required="true">
+            <ip_address field_category="main" required="true">
                 <label>IP Address</label>
                 <!-- <flavor>fact</flavor>-->
                 <format>string</format>
@@ -523,7 +455,7 @@
             <agent_reported flavor="fact" meta="true" required="false" type="date">
                 <label>Agent Reported</label>
             </agent_reported>
-            <status>
+            <status field_category="main" >
                 <label>Status</label>
                 <required>false</required>
                 <flavor>config</flavor>
@@ -615,15 +547,8 @@
             </power_supply_watts>
             <agent_type maps_to="/pp_lexicon/data_elements/string" required="false"/>
         </network_switch>
-        <ip key="address">
-            <address maps_to="/pp_lexicon/data_elements/ip_address" required="false"/>
-            <interface maps_to="/pp_lexicon/data_elements/string" required="true"/>
-            <fqdn maps_to="/pp_lexicon/data_elements/string" required="true"/>
-            <mac_address maps_to="/pp_lexicon/data_elements/mac_address" required="true"/>
-            <is_primary maps_to="/pp_lexicon/data_elements/int" required="true"/>
-        </ip>
-        <system extends="/pp_lexicon/entities/device" key="fqdn">
-            <svc_id label="Service Record" maps_to="/pp_lexicon/data_elements/int" required="false">
+        <system extends="/pp_lexicon/entities/device" key="fqdn" field_order="fqdn,status,system_type,inventory_component_type,roles,ip_address,environment_name,svc_id">
+            <svc_id field_category="main" label="Service Record" maps_to="/pp_lexicon/data_elements/int" required="false">
                 <enumeration attribute="name" entity="service_instance"/>
             </svc_id>
             <agent_type flavor="fact" label="Agent Type" maps_to="/pp_lexicon/data_elements/string" required="false"/>
@@ -755,7 +680,7 @@
             <drac  field_category="HW Info" maps_to="/pp_lexicon/entities/drac" required="false">
                 <label>DRAC</label>
             </drac>
-            <roles>
+            <roles field_category="main" >
                 <label>Roles</label>
                 <format>multiselect</format>
                 <enumeration attribute="role_id" entity="role"/>
@@ -764,7 +689,6 @@
                 <label>Customers</label>
                 <customer maps_to="/pp_lexicon/entities/customer"/>
             </customers>
-            <power_supply_count  field_category="HW Info" maps_to="/pp_lexicon/data_elements/power_supply_count" required="false"/>
             <power_supply_watts field_category="HW Info" >
                 <label>Power Supply(Watts)</label>
                 <flavor>fact</flavor>
@@ -807,8 +731,6 @@
                 <flavor>fact</flavor>
                 <format>string</format>
             </pps_version>
-            <blade_chassis_serial  field_category="HW Info" maps_to="/pp_lexicon/data_elements/string" required="false"/>
-            <!-- This attribute is only meaningful if this system is a host for other systems (VM,blades) -->
             <guest_fqdns type="array">
                 <label>Guest Hosts</label>
                 <fqdn maps_to="/pp_lexicon/data_elements/fqdn" required="false"/>
@@ -823,7 +745,7 @@
                 <flavor>config</flavor>
                 <format>string</format>
             </audit_info>
-            <environment_name label="Environment" maps_to="/pp_lexicon/data_elements/string" required="false"/>
+            <environment_name field_category="main" label="Environment" maps_to="/pp_lexicon/data_elements/string" required="false"/>
             <config_agent_timestamp field_category="Puppet" label="Puppet Timestamp" meta="true" required="false" type="date"/>
             <config_agent_status  field_category="Puppet" label="Puppet Status" maps_to="/pp_lexicon/data_elements/string" meta="true" required="false"/>
             <config_agent_summary  field_category="Puppet" label="Puppet Summary" maps_to="/pp_lexicon/data_elements/string" meta="true" required="false"/>
@@ -837,16 +759,13 @@
                 <fqdn maps_to="/pp_lexicon/data_elements/fqdn" required="true"/>
             </guest_fqdns>
         </blade_chassis>
-        <role key="role_id">
-            <role_id format="string" label="Role" required="true" traffic_control_approval_required="true" ui_readwrite="true" ui_required="true"/>
+        <role key="role_id" field_order="role_id,role_name">
+            <role_id format="string" label="Role" required="true" />
             <role_name maps_to="/pp_lexicon/data_elements/string" required="true">
                 <label>Description</label>
             </role_name>
-            <blessed maps_to="/pp_lexicon/data_elements/int">
-                <label>is blessed</label>
-            </blessed>
         </role>
-        <inv_normalizer key="id">
+        <inv_normalizer key="id" field_order="id,entity_name,field_name,matcher,sub_value">
             <id>
                 <label>ID</label>
                 <required>true</required>
@@ -873,16 +792,14 @@
                 <format>string</format>
             </sub_value>
         </inv_normalizer>
-        <address/>
-        <customers/>
-        <acl key="acl_id">
+        <acl key="acl_id" field_order="acl_id,acl_group,entity,field,logic">
             <acl_id format="int" label="ID"/>
             <acl_group format="string" label="Group"/>
             <entity format="string" label="Entity"/>
             <field format="string" label="Field"/>
             <logic format="string" label="Block Logic"/>
         </acl>
-        <user key="username">
+        <user key="username" field_order="username,systemuser,groups,writeaccess,sshkey">
             <username format="string" label="Username"/>
             <writeaccess format="bool" label="Write Access"/>
             <systemuser format="bool" label="System User"/>
@@ -943,19 +860,6 @@
                 <required>false</required>
             </size>
         </hardware_model>
-        <instance_size key="id">
-            <id label="ID" maps_to="/pp_lexicon/data_elements/string" required="true"/>
-            <provider label="Provider" maps_to="/pp_lexicon/data_elements/string" required="true"/>
-            <name label="Size" maps_to="/pp_lexicon/data_elements/string" required="false"/>
-            <description label="Description" maps_to="/pp_lexicon/data_elements/string" required="false"/>
-            <cost label="Price" maps_to="/pp_lexicon/data_elements/string" required="false"/>
-        </instance_size>
-        <instance_location key="provider">
-            <provider label="Provider" maps_to="/pp_lexicon/data_elements/string" required="true"/>
-            <data_center_code label="Data Center" maps_to="/pp_lexicon/data_elements/string" required="true"/>
-            <label label="Label" maps_to="/pp_lexicon/data_elements/string" required="true"/>
-            <location label="Location" maps_to="/pp_lexicon/data_elements/string" required="true"/>
-        </instance_location>
         <environments key="name">
             <name label="Name" maps_to="/pp_lexicon/data_elements/string" required="true"/>
             <environment_name label="Parent Environment" maps_to="/pp_lexicon/data_elements/string" required="true"/>
