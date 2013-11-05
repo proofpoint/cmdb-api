@@ -307,6 +307,18 @@
                 <format>string</format>
                 <required>true</required>
             </subnet>
+            <gateway>
+                <label>Gateway</label>
+                <flavor>config</flavor>
+                <format>string</format>
+                <required>false</required>
+            </gateway>
+            <vlan>
+                <label>VLAN</label>
+                <flavor>config</flavor>
+                <format>string</format>
+                <required>false</required>
+            </vlan>
             <data_center_code flavor="fact" maps_to="/pp_lexicon/entities/data_center/data_center_code" required="false"/>
             <notes>
                 <label>Notes</label>
