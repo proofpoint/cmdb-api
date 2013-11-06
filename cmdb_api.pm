@@ -35,13 +35,23 @@ use Apache2::Const -compile => qw(OK HTTP_NOT_FOUND HTTP_OK HTTP_FAILED_DEPENDEN
 use APR::Const    -compile => qw(SUCCESS BLOCK_READ);
 use constant IOBUFSIZE => 8192;
 use JSON;
-use PPOPS::PP_Inventory;
 use XML::Parser;
 use XML::Simple;
 use Apache::DBI;
 use Date::Manip;
 use Optconfig;
 use DBI;
+
+sub eat_json {
+   my ($json_text, $opthash) = @_;
+    return ($JSON::VERSION > 2.0 ? from_json($json_text, $opthash) : JSON->new()->jsonToObj($json_text, $opthash));
+}
+
+sub make_json {
+   my ($obj, $opthash) = @_;
+    return ($JSON::VERSION > 2.0 ? to_json($obj, $opthash) : JSON->new()->objToJson($obj, $opthash));
+}
+
 
 my $opt = Optconfig->new('cmdb_api', { 'driver=s' => 'mysql',
                                       'dbuser=s' => 'dbuser',
