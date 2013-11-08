@@ -323,10 +323,6 @@
                 <format>string</format>
             </az_id>
         </datacenter_subnet>
-        <cage key="cage_code">
-            <data_center_code flavor="fact" maps_to="/pp_lexicon/entities/data_center/data_center_code" required="true"/>
-            <cage_code maps_to="/pp_lexicon/data_elements/string" required="false"/>
-        </cage>
         <rack key="rack_code">
             <data_center_code flavor="fact" maps_to="/pp_lexicon/entities/data_center/data_center_code" required="true"/>
             <cage_code flavor="fact" maps_to="/pp_lexicon/entities/cage/cage_code" required="true"/>
