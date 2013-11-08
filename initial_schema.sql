@@ -10,25 +10,7 @@ CREATE TABLE `acl` (
   `field` varchar(75) DEFAULT NULL,
   `logic` text,
   PRIMARY KEY (`acl_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8;
-
---
--- Table structure for table `change_queue`
---
-
-DROP TABLE IF EXISTS `change_queue`;
-CREATE TABLE `change_queue` (
-  `id` int(9) unsigned NOT NULL AUTO_INCREMENT,
-  `change_ip` varchar(20) NOT NULL,
-  `change_user` varchar(50) NOT NULL,
-  `change_time` datetime NOT NULL,
-  `change_content` text NOT NULL,
-  `entity` varchar(75) NOT NULL,
-  `entity_key` varchar(250) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `entity_key_change_content` (`entity_key`,`change_content`(250)) USING BTREE,
-  KEY `entity_key` (`entity_key`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=47541 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
 -- Table structure for table `data_center`
@@ -94,7 +76,7 @@ CREATE TABLE `device` (
   KEY `system_type` (`system_type`),
   KEY `fk_device_inv_comp_type_comp_type_type` (`inventory_component_type`),
   KEY `ip_address` (`ip_address`),
-  CONSTRAINT `fk_device_data_center_code` FOREIGN KEY (`data_center_code`) REFERENCES `data_center` (`data_center_code`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_device_data_center_code` FOREIGN KEY (`data_center_code`) REFERENCES `data_center` (`data_center_code`) ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
@@ -114,7 +96,7 @@ CREATE TABLE `device_metadata` (
   KEY `fk_device_metadata_device_fqdn` (`fqdn`),
   KEY `metadata_value` (`metadata_value`(100)),
   CONSTRAINT `fk_device_metadata_device_fqdn` FOREIGN KEY (`fqdn`) REFERENCES `device` (`fqdn`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=507503 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
 -- Table structure for table `hardware_model`
@@ -129,6 +111,24 @@ CREATE TABLE `hardware_model` (
   `power_supply_watts` int(10) DEFAULT NULL,
   `size` int(2) DEFAULT NULL,
   `url` varchar(4000) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+--
+-- Table structure for table `change_queue`
+--
+
+DROP TABLE IF EXISTS `change_queue`;
+CREATE TABLE `change_queue` (
+  `id` int(9) unsigned NOT NULL AUTO_INCREMENT,
+  `change_ip` varchar(20) NOT NULL,
+  `change_user` varchar(50) NOT NULL,
+  `change_time` datetime NOT NULL,
+  `change_content` text NOT NULL,
+  `entity` varchar(75) NOT NULL,
+  `entity_key` varchar(250) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `entity_key_change_content` (`entity_key`,`change_content`(250)),
+  KEY `entity_key` (`entity_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
@@ -159,7 +159,7 @@ CREATE TABLE `inv_normalizer` (
   `matcher` varchar(120) DEFAULT NULL,
   `sub_value` varchar(120) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
 -- Table structure for table `pool`
@@ -217,7 +217,7 @@ CREATE TABLE `service_instance` (
   `note` varchar(255) DEFAULT NULL,
   `environment_name` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`svc_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=336 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
 -- Table structure for table `service_instance_data`
@@ -230,7 +230,7 @@ CREATE TABLE `service_instance_data` (
   `data_key` varchar(45) NOT NULL,
   `data_value` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`data_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=468 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
 -- Table structure for table `snat`
@@ -259,6 +259,8 @@ CREATE TABLE `user` (
   `writeaccess` varchar(25) DEFAULT NULL,
   `sshkey` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+INSERT into `user` set groups="Admin", systemuser="0",username="admin",writeaccess="1";
 
 --
 -- Table structure for table `vip`
