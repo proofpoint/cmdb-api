@@ -57,6 +57,7 @@ my $opt = Optconfig->new('cmdb_api', { 'driver=s' => 'mysql',
                                       'dbuser=s' => 'dbuser',
                                       'dbpass=s' => 'dbpass',
                                       'dbhost' => 'localhost',
+                                      'database' => 'inventory',
                                       'debug' => 1,
                                       'prism_domain' => 'prism.ppops.net',
                                       'logconfig' => '/var/www/cmdb_api/log4perl.conf',
@@ -124,6 +125,7 @@ my $DEBUG=$opt->{'debug'};
 my $DBHOST=$opt->{'dbhost'};
 my $DBUSER=$opt->{'dbuser'};
 my $DBPASS=$opt->{'dbpass'};
+my $DATABASE=$opt->{'database'};
 my ($lexicon,$tree,$parser);
 my ($parms);
 my $log_config_file=$opt->{'logconfig'};
@@ -230,7 +232,7 @@ sub lkupXMLPath()
 
 # mod perl2 handler
 sub handler() {
- 	$dbh=DBI->connect("DBI:mysql:database=inventory;host=$DBHOST",$DBUSER,$DBPASS);
+ 	$dbh=DBI->connect("DBI:mysql:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS);
 	my $r = shift;
 	my $up_uri = $r->unparsed_uri();
 	$up_uri =~ s/.+\?//;
