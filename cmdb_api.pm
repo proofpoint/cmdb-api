@@ -140,7 +140,7 @@ unless($lexicon)
 }
 
 # database connection
-#my $dbh=DBI->connect("DBI:mysql:database=inventory;host=$DBHOST",$DBUSER,$DBPASS);
+#my $dbh=DBI->connect("DBI:mysql:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS);
 our $dbh;
 #valid api types. these must exist and be parsable in the lexicon if they are 'Generic' 
 # or have provided do<ENTITY>GET/PUT/POST functions
@@ -863,7 +863,7 @@ sub setNewName()
 sub doSql(){
 	my $sql=shift;
 	my $parms=shift;
-	my $dbh=DBI->connect("DBI:mysql:database=inventory;host=$DBHOST",$DBUSER,$DBPASS);
+	my $dbh=DBI->connect("DBI:mysql:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS);
 	
 	my $sth=$dbh->prepare($sql);
 	my $sql_out;
@@ -932,7 +932,7 @@ sub doGenericPUT
 	my $requestObject=shift;
 	my $entity=$$requestObject{'entity'};
 	$logger->info("processing PUT");
-	my $dbs=DBI->connect("DBI:mysql:database=inventory;host=$DBHOST",$DBUSER,$DBPASS,{AutoCommit=>1});
+	my $dbs=DBI->connect("DBI:mysql:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS,{AutoCommit=>1});
 	$dbs->begin_work;
 	my (@sql,$parms,@errors);
 	my $data=&eat_json($$requestObject{'body'},{allow_nonref=>1});	
@@ -1211,7 +1211,7 @@ sub doAclPUT {
 	my $requestObject=shift;
 	my $entity=$$requestObject{'entity'};
 	$logger->info("processing PUT");
-	my $dbs=DBI->connect("DBI:mysql:database=inventory;host=$DBHOST",$DBUSER,$DBPASS,{AutoCommit=>1});
+	my $dbs=DBI->connect("DBI:mysql:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS,{AutoCommit=>1});
 	$dbs->begin_work;
 	my (@sql,$parms,@errors);
 	my $data=&eat_json($$requestObject{'body'},{allow_nonref=>1});	
@@ -1719,7 +1719,7 @@ sub executeDbStatement {
 sub doEnvironmentsServicesPUT(){
 	my $requestObject=shift;
 	$logger->info("processing PUT");
-	my $dbh=DBI->connect("DBI:mysql:database=inventory;host=$DBHOST",
+	my $dbh=DBI->connect("DBI:mysql:database=$DATABASE;host=$DBHOST",
 			     $DBUSER,$DBPASS,{AutoCommit=>0,RaiseError=>1});
 	my $environment = $requestObject->{'path'}[0];
 	my $service = $requestObject->{'path'}[2];
@@ -1913,7 +1913,7 @@ sub doEnvironmentsServicesPUT(){
 sub doEnvironmentsServicesPOST(){
 	my $requestObject=shift;
 	$logger->info("processing POST");
-	my $dbh=DBI->connect("DBI:mysql:database=inventory;host=$DBHOST",
+	my $dbh=DBI->connect("DBI:mysql:database=$DATABASE;host=$DBHOST",
 			     $DBUSER,$DBPASS,{AutoCommit=>0,RaiseError=>1});
 	my $environment = $requestObject->{'path'}[0];
 	my $service = $requestObject->{'path'}[2];
@@ -2030,7 +2030,7 @@ sub doEnvironmentsServicesPOST(){
 sub doEnvironmentsServicesDELETE(){
 	my $requestObject=shift;
 	$logger->info("processing DELETE");
-	my $dbh=DBI->connect("DBI:mysql:database=inventory;host=$DBHOST",
+	my $dbh=DBI->connect("DBI:mysql:database=$DATABASE;host=$DBHOST",
 			     $DBUSER,$DBPASS,{AutoCommit=>0,RaiseError=>1});
 	my $environment = $requestObject->{'path'}[0];
 	my $service = $requestObject->{'path'}[2];
@@ -2315,7 +2315,7 @@ sub doSystemGET(){
 
 sub doSystemPUT(){
 	my $requestObject=shift;
-	my $dbs=DBI->connect("DBI:mysql:database=inventory;host=$DBHOST",$DBUSER,$DBPASS,{AutoCommit=>1});
+	my $dbs=DBI->connect("DBI:mysql:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS,{AutoCommit=>1});
 	my $x=0;
 	my $fqdn=$$requestObject{'path'}[0];
 	my $data=&eat_json($$requestObject{'body'},{allow_nonref=>1});
@@ -2553,7 +2553,7 @@ sub doSystemPUT(){
 }
 sub doSystemPOST(){
 	my $requestObject=shift;
-	my $dbs=DBI->connect("DBI:mysql:database=inventory;host=$DBHOST",$DBUSER,$DBPASS,{AutoCommit=>1});
+	my $dbs=DBI->connect("DBI:mysql:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS,{AutoCommit=>1});
 	my $x=0;
 	my $data=&eat_json($$requestObject{'body'},{allow_nonref=>1});
 	my $fqdn=$$data{'fqdn'};
