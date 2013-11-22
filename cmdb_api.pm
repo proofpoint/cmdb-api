@@ -1742,7 +1742,7 @@ sub doEnvironmentsServicesPUT(){
 
 	eval {
 		# Get service_instance record for the requested service
-		$sql = "select svc_id,type,name,environment_name,note from service_instance where environment_name=? and name=?";
+		$sql = "select svc_id,type,name,environment_name,note from service_instance where environment_name=? and name=? and type!='environment'";
 		$sth = $dbh->prepare($sql);
 		executeDbStatement($sth, $sql, $environment, $service);
 		$lkup_data = $sth->fetchall_arrayref({}, undef);
