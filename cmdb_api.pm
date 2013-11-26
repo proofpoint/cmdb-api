@@ -2262,7 +2262,7 @@ sub doSystemGET(){
 		$field_sql.="," if $field_sql;
 		if($_ eq 'guest_fqdns') {
 			my $host = $getparams{fqdn} ? $getparams{fqdn}{val} : $$requestObject{'path'}[0];
-			$field_sql.=" (select group_concat(fqdn) as guest_fqdns from device_metadata where metadata_value=d.fqdn and metadata_name=\"host_fqdn\" group by \"all\") as $_";
+			$field_sql.=" (select group_concat(fqdn) as guest_fqdns from device where host_fqdn=d.fqdn and host_fqdn != '' group by \"all\") as $_";
 		}	
 		else {
 			$field_sql.="m$x.metadata_value as $_";
