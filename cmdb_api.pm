@@ -1875,16 +1875,17 @@ sub doEnvironmentsServicesPUT(){
 			$did_update = 1;
 		}
 
+		$dbh->commit;
+
 		$new_value = &doEnvironmentsServicesGET($requestObject);
 		if ($did_update) {
 			insertAuditEntry($dbh, $requestObject, 'services',
 					"$environment/$service", 'record',
-			                substr(make_json($old_value),0,100). '...',
-			                substr(make_json($new_value),0,100). '...',
+			                make_json($old_value),
+			                make_json($new_value),
 					$$now[0]);
+			$dbh->commit;
 		}
-
-		$dbh->commit;
 	};
 	  if ($@) {
 		  my $errstr;
@@ -1901,7 +1902,7 @@ sub doEnvironmentsServicesPUT(){
 
 		  eval { $dbh->rollback; };
 
-		  return $errstr;
+		  $error = $errstr;
 	  }
 
 	if (defined $error) {
@@ -2085,7 +2086,7 @@ sub doEnvironmentsServicesDELETE(){
 		insertAuditEntry($dbh, $requestObject, 'services',
 				 "$environment/$service",
 				 'record',
-				 substr(make_json($old_value),0,100). '...',
+				 make_json($old_value),
 				 'DELETED', $$now[0]);
 		$dbh->commit;
 	};
@@ -2104,7 +2105,7 @@ sub doEnvironmentsServicesDELETE(){
 
 		eval { $dbh->rollback; };
 
-		return $errstr;
+		$error = $errstr;
 	}
 
 	if (defined $error) {
