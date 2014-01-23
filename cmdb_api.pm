@@ -1621,7 +1621,7 @@ sub doEnvironmentsServicesGET() {
 
 	%hash = ();
 	my $list = join(', ', map { "'$_'" } @parents);
-	$sql = "select name, environment_name, type, data_key, data_value from " .
+	$sql = "select name, environment_name, s.svc_id, type, data_key, data_value from " .
 	       " (select name, environment_name, svc_id, type from service_instance " .
 	       "  where type != 'environment' ";
 
@@ -1652,6 +1652,7 @@ sub doEnvironmentsServicesGET() {
 						  name => $data->{'name'},
 						  environment_name => $data->{'environment_name'},
 						  type => $data->{'type'},
+						  svc_id => $data->{'svc_id'},
 						  };
 		}
 
