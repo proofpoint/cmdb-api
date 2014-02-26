@@ -1585,8 +1585,7 @@ sub doEnvironmentsServicesGET() {
 	$environment = $requestObject->{'path'}[0];
 	$service = $requestObject->{'path'}[2];
 
-	my $sql = "select name, environment_name from service_instance " .
-	          "where type='environment'";
+	my $sql = "select name, environment_name from environments";
 
 	my $rtn = &doSql($sql, undef);
 	if ($$rtn{'err'}) {
