@@ -1380,18 +1380,29 @@ sub doChangeQueueGET()
 	my $requestObject=shift;
 	# check to see if this entity requires special processing, otherwise handle with generic
 	# assemble sql based on input parameters
-	$sql="select * from change_queue ch left join device d on ch.entity_key=d.fqdn where ";
+	my $device_fields=&getFieldList('device',0);
+	my $change_fields=&getFieldList('change_queue',0);
+	my @field_list;
+
+	for my $field (@$change_fields) {
+		push @field_list, 'ch.' . $field;
+	}
+
+	for my $field (@$device_fields) {
+		next if ($field eq 'id');
+		push @field_list, 'd.' . $field;
+	}
+
+	$sql="select " . join(', ', @field_list) . " from change_queue ch left join device d on ch.entity_key=d.fqdn where ";
 
 	# check for path key value and add if specified
 	if($$requestObject{'path'}[0])
 	{
 		$logger->debug("found $tree->{entities}->{$$requestObject{'entity'}}->{key} : $$requestObject{'path'}[0] in url") if ($logger->is_debug());
-		$sql.=" $tree->{entities}->{$$requestObject{'entity'}}->{key} like ?";
+		$sql.=" ch.$tree->{entities}->{$$requestObject{'entity'}}->{key} like ?";
 		push(@$parms,$$requestObject{'path'}[0]);
 	}
 	$logger->debug("getparms: $$requestObject{getparams}") if ($logger->is_debug());
-	my $device_fields=&getFieldList('device',0);
-	my $change_fields=&getFieldList('change_queue',0);
 	if($$requestObject{getparams}) {
 		my @ranges=split(/[&;]/, $$requestObject{getparams});
 		foreach my $range (@ranges) {
