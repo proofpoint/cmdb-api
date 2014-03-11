@@ -18,13 +18,13 @@
 <pp_lexicon version="1.2.1">
     <!-- These are the top level inventory API objects -->
     <entities>
-        <device_ip key="ip_address">
-            <ip_address>
+        <device_ip key="ipaddress">
+            <ipaddress>
                 <label>IP</label>
                 <flavor>config</flavor>
                 <required>true</required>
                 <format>string</format>
-            </ip_address>
+            </ipaddress>
             <fqdn refers_to="/pp_lexicon/entities/system" required="true">
                 <label>Name</label>
                 <flavor>config</flavor>
@@ -345,7 +345,9 @@
             <name label="SVC Name" maps_to="/pp_lexicon/data_elements/string" required="true"/>
             <type label="Type" maps_to="/pp_lexicon/data_elements/string" required="false"/>
             <note label="Note" maps_to="/pp_lexicon/data_elements/string" required="false"/>
-            <environment_name label="Environment" maps_to="/pp_lexicon/data_elements/string" required="false"/>
+            <environment_name field_category="main" label="Environment" maps_to="/pp_lexicon/data_elements/string" required="false">
+            <enumeration attribute="name" entity="environments"/> 
+            </environment_name>
         </service_instance>
         <service_instance_data key="data_id">
             <data_id label="Data ID" maps_to="/pp_lexicon/data_elements/int" required="true"/>
@@ -404,22 +406,22 @@
                     <is_string/>
                 </validation>
             </system_type>
-            <ip_address field_category="main" required="true">
+            <ipaddress field_category="main" required="true">
                 <label>IP Address</label>
                 <!-- <flavor>fact</flavor>-->
                 <format>string</format>
                 <validation>
                     <regex>/.*/</regex>
                 </validation>
-            </ip_address>
-            <mac_address required="true">
+            </ipaddress>
+            <macaddress required="true">
                 <label>MAC Address</label>
                 <flavor>fact</flavor>
                 <format>string</format>
                 <validation>
                     <regex>/.*/</regex>
                 </validation>
-            </mac_address>
+            </macaddress>
             <data_center_code>
                 <label>Datacenter</label>
                 <flavor>fact</flavor>
@@ -555,7 +557,7 @@
             </power_supply_watts>
             <agent_type maps_to="/pp_lexicon/data_elements/string" required="false"/>
         </network_switch>
-        <system extends="/pp_lexicon/entities/device" key="fqdn" field_order="fqdn,status,system_type,inventory_component_type,roles,ip_address,environment_name,svc_id">
+        <system extends="/pp_lexicon/entities/device" key="fqdn" field_order="fqdn,status,system_type,inventory_component_type,roles,ipaddress,environment_name,svc_id">
             <svc_id field_category="main" label="Service Record" maps_to="/pp_lexicon/data_elements/int" required="false">
                 <enumeration attribute="name" entity="service_instance"/>
             </svc_id>
@@ -753,7 +755,9 @@
                 <flavor>config</flavor>
                 <format>string</format>
             </audit_info>
-            <environment_name field_category="main" label="Environment" maps_to="/pp_lexicon/data_elements/string" required="false"/>
+            <environment_name field_category="main" label="Environment" maps_to="/pp_lexicon/data_elements/string" required="false">
+            <enumeration attribute="name" entity="environments"/> 
+            </environment_name>
             <config_agent_timestamp field_category="Puppet" label="Puppet Timestamp" meta="true" required="false" type="date"/>
             <config_agent_status  field_category="Puppet" label="Puppet Status" maps_to="/pp_lexicon/data_elements/string" meta="true" required="false"/>
             <config_agent_summary  field_category="Puppet" label="Puppet Summary" maps_to="/pp_lexicon/data_elements/string" meta="true" required="false"/>
@@ -870,8 +874,19 @@
         </hardware_model>
         <environments key="name">
             <name label="Name" maps_to="/pp_lexicon/data_elements/string" required="true"/>
-            <environment_name label="Parent Environment" maps_to="/pp_lexicon/data_elements/string" required="true"/>
+            <environment_name field_category="main" label="Parent Environment" maps_to="/pp_lexicon/data_elements/string" required="true">
+            <enumeration attribute="name" entity="environments"/> 
+            </environment_name>            
             <note label="Note" maps_to="/pp_lexicon/data_elements/string" required="false"/>
         </environments>
+        <!-- environmentservice is the service_instance entity that is served from a different REST API --> 
+        <environmentservice key="name">
+            <name label="SVC Name" maps_to="/pp_lexicon/data_elements/string" required="true"/>
+            <type label="Type" maps_to="/pp_lexicon/data_elements/string" required="false"/>
+            <note label="Note" maps_to="/pp_lexicon/data_elements/string" required="false"/>
+            <environment_name field_category="main" label="Environment" maps_to="/pp_lexicon/data_elements/string" required="false">
+                <enumeration attribute="name" entity="environments"/> 
+            </environment_name>
+        </environmentservice>
     </entities>
 </pp_lexicon>

@@ -101,7 +101,8 @@ my $opt = Optconfig->new('cmdb_api', { 'driver=s' => 'mysql',
 											instance_size=>'Generic',
 									        instance_location=>'Generic',
 									        column_lkup=>'Column_lkup',
-					     					environments=>'Environments'
+					     					environments=>'Environments',
+					     					environmentservice=>'Environments'
                                       }
                                     });
 
@@ -147,45 +148,6 @@ our $dbh;
 # or have provided do<ENTITY>GET/PUT/POST functions
 
 my $valid_entities = $opt->{'entities'};
-
-# my $valid_entities={
-# 	acl=>'Acl',
-# 	vip=>'Generic',
-# 	datacenter_subnet=>'Generic',
-# 	role=>'Generic',
-# 	pod_cluster=>'Generic',
-# 	snat=>'Generic',
-# 	pool=>'Generic',
-# 	cluster=>'Generic',
-# 	hardware_model=>'Generic',
-# 	cluster_mta=>'Generic',
-# 	system=>'System',
-# 	device=>'System',
-# 	blade_chassis=>'System',
-# 	console_server=>'System',
-# 	firewall=>'System',
-# 	load_balancer=>'System',
-# 	network_switch=>'System',
-# 	power_strip=>'System',
-# 	router=>'System',
-# 	storage_head=>'System',
-# 	storage_shelf=>'System',
-# 	device_ip=>'Generic',
-# 	newhostname=>'Provision',
-# 	pcmsystemname=>'ProvisionPcm',
-# 	user=>'Generic',
-# 	currentUser=>'User',
-# 	inv_audit=>'Generic',
-# 	audit=>'Audit',
-# 	inv_normalizer=>'Generic',
-# 	fact=>'TrafficControl',
-# 	change_queue=>'ChangeQueue',
-# 	ip=>'Generic',
-# 	service_instance=>'Generic',
-# 	service_instance_data=>'Generic',
-# 	instance_size=>'Generic',
-#     instance_location=>'Generic'
-# 	};
 
 my $versions=[ 'v1' ];
 
@@ -1620,8 +1582,8 @@ sub doEnvironmentsServicesGET() {
 
 	%hash = ();
 	my $list = join(', ', map { "'$_'" } @parents);
-	$sql = "select name, environment_name, s.svc_id, type, data_key, data_value from " .
-	       " (select name, environment_name, svc_id, type from service_instance " .
+	$sql = "select name, environment_name, note,  s.svc_id, type, data_key, data_value from " .
+	       " (select name, environment_name, note,  svc_id, type from service_instance " .
 	       "  where type != 'environment' ";
 
 	if (defined $service) {
@@ -1652,6 +1614,7 @@ sub doEnvironmentsServicesGET() {
 						  environment_name => $data->{'environment_name'},
 						  type => $data->{'type'},
 						  svc_id => $data->{'svc_id'},
+						  note => $data->{'note'},
 						  };
 		}
 
@@ -1778,15 +1741,19 @@ sub doEnvironmentsServicesPUT(){
 
 		# Determine if we need to modify any fields of the service instance record
 
+		$logger->info('found data for service_instance: ' .  make_json($data));
+
 		for my $f (&getFieldList('service_instance')) {
 			my $value = $lkup_data->{$f};
-			if (defined $value && $value ne $data->{$f}) {
+			if (defined $data->{$f} && $value ne $data->{$f}) {
 				$service_updates{$f} = [ $value, $data->{$f} ];
 			}
 
 			delete $data->{$f}; #ICK
 		}
 		delete $data->{'svc_id'}; #ICK
+
+		$logger->info('found changes for service_instance: ' . join(',',keys(%service_updates)));
 
 
 		# Get all service_instance_data records that belong to this instance
