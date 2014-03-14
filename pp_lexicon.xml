@@ -413,6 +413,7 @@
                 <validation>
                     <regex>/.*/</regex>
                 </validation>
+                <fact>betterip,ipaddress</fact>
             </ipaddress>
             <macaddress required="true">
                 <label>MAC Address</label>
@@ -655,7 +656,7 @@
                 <label>Kernel Release</label>
                 <flavor>fact</flavor>
                 <format>string</format>
-                <fact>kernel_release</fact>
+                <fact>kernelrelease</fact>
             </kernel_release>
             <interfaces  field_category="HW Info" flavor="fact">
                 <label>NICs</label>
