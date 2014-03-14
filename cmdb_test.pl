@@ -32,7 +32,7 @@ my $HALT = $opt{'H'} ? 1 : 0;
 if(length($FILE) == 0)
 {
 print "usage: inv_test.pl -f <testcase file>
-    -f: csv file with testcases (see inv_tests.csv)
+    -f: csv file with testcases (see cmdb_tests.csv)
     -p: parse testcase file only 
     -r: run tests
     -d: debug
@@ -134,7 +134,7 @@ sub execTest()
     my $result='';
     $test->{'host:port'}=~m|//(.*)|;
     my $hostport=$1;
-    $ua->credentials($hostport,'Authorized Personnel Only',$user,$pass);
+    $ua->credentials($hostport,'Operations Only',$user,$pass);
     if($test->{'method'} eq 'GET')
     {
         if($test->{'data'})
