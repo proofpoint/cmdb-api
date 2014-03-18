@@ -5,7 +5,7 @@ modify system,,system,test.test.com,"{""notes"":""testnote""}",PUT,http://localh
 lookup nonexistent system,,system,no.system.com,,GET,http://localhost:80,/cmdb_api/v1/,readonly/readonly,404,,
 ,"there is no delete function, this will always fail",system,test.test.com,,DELETE,http://localhost:80,/cmdb_api/v1/,readonly/readonly,200,,
 verify via audit ,,inv_audit,,"{""entity_key"":""test.test.com"",""field_name"":""notes"",""new_value"":""testnote""}",GET,http://localhost:80,/cmdb_api/v1/,readonly/readonly,200,data,new_value=testnote
-create datacenter,,data_center,DC1,"{“"data_center_code"”:"”DC1"”,"”data_center_vendor"”:"”sample vendor"”}",POST,http://localhost:80,/cmdb_api/v1/,readonly/readonly,201,header,Location=/cmdb_api/v1/data_center/DC1
+create datacenter,,data_center,DC1,"{""data_center_code"":""DC1"",""data_center_vendor"":""sample vendor""}",POST,http://localhost:80,/cmdb_api/v1/,readonly/readonly,201,header,Location=/cmdb_api/v1/data_center/DC1
 ,,,,,,,,,,,
 create datacenter_subnet,,datacenter_subnet,,"{""data_center_code"":""DC1"",""subnet"":""10.10.0.0/24"",""notes"":""testsubnet"",""id"":1000}",POST,http://localhost:80,/cmdb_api/v1/,readonly/readonly,201,header,Location~/cmdb_api/v1/datacenter_subnet/1000
 edit datacenter_subnet,,datacenter_subnet,1000,"{""notes"":""testnote""}",PUT,http://localhost:80,/cmdb_api/v1/,readonly/readonly,200,data,notes=testnote

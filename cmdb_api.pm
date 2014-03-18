@@ -2345,7 +2345,7 @@ sub doSystemPUT(){
 			||
 			( 
 				!exists($data->{'data_center_code'}) 
-				&& defined($lkup_data->{'data_center_code'})
+				#&& defined($lkup_data->{'data_center_code'})
 				&& length($lkup_data->{'data_center_code'})==0 
 			) 
 		)
