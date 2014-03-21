@@ -1049,6 +1049,11 @@ sub doGenericPUT
 	else
 	{
 		$dbs->commit;
+		# check to see if key value was chnaged during this put, and adjust for GET
+		if($$data{ $tree->{entities}->{$$requestObject{'entity'}}->{key} })
+		{
+			$$requestObject{'path'}[0] = $$data{ $tree->{entities}->{$$requestObject{'entity'}}->{key} };
+		}
 		return &doGenericGET($requestObject);
 	}
 	
@@ -1859,6 +1864,15 @@ sub doEnvironmentsServicesPUT(){
 		}
 
 		$dbh->commit;
+
+		#adjust key path, if key field value was changed
+		if($service_updates{'name'})
+		{
+			$logger->debug(make_json($requestObject));
+			$requestObject->{'path'}->[2] = $service_updates{'name'}[1];
+			$logger->debug(make_json($requestObject));
+		}
+
 
 		$new_value = &doEnvironmentsServicesGET($requestObject);
 		if ($did_update) {
