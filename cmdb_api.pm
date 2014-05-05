@@ -2237,7 +2237,10 @@ sub doSystemGET(){
 			}
 			# my $var=$$requestObject{'query'}{$_};
 			# $var=~s/\*/%/g;
-			$getparams{$_}{val} =~ s/\*/%/g;
+			if($op !~ /RLIKE/)
+			{
+				$getparams{$_}{val} =~ s/\*/%/g;
+			}
 			#push(@$parms,$var);
 			push(@$parms,$getparams{$_}{val});
 		}
@@ -2271,7 +2274,10 @@ sub doSystemGET(){
 				# my $var=$$requestObject{'query'}{$_};
 				# $var=~s/\*/%/g;
 				# push(@$parms,$var);
-				$getparams{$_}{val} =~ s/\*/%/g;
+				if($op !~ /RLIKE/)
+				{
+					$getparams{$_}{val} =~ s/\*/%/g;
+				}
 				push(@$parms,$getparams{$_}{val});
 			}
 		}
