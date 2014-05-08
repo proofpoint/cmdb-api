@@ -1917,7 +1917,14 @@ sub doEnvironmentsServicesPOST(){
 	# FIXME: should this be how we handle this?  No point in specifying either
 	# of these attributes in the request.
 	delete $data->{svc_id};
-	$data->{name} = $service;
+	if($service)
+	{
+		$data->{name} = $service;		
+	}
+	else
+	{
+		$service = $data->{name};
+	}
 	$data->{'environment_name'} = $environment;
 
 	if (not defined $service) {
