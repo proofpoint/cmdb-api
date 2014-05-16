@@ -317,12 +317,12 @@ sub handler() {
 
 		}
 
-		
+
 		# check for valid entity
 		unless($$requestObject{'entity'} && $$valid_entities{$$requestObject{'entity'}})
 		{
 			$logger->debug( "valid entities:") if ($logger->is_debug());
-			$logger->debug( "entity lkup: $$valid_entities{$$requestObject{'entity'}}") if ($logger->is_debug());
+			$logger->debug( "entity lkup: " . $$valid_entities{$$requestObject{'entity'}}) if ($logger->is_debug());
 			$r->print('valid entity required');
 			return Apache2::Const::HTTP_NOT_ACCEPTABLE;
 		}
@@ -337,8 +337,8 @@ sub handler() {
 				message => $data
 			};
 		}
-		$logger->debug( "final return of status: $$requestObject{'stat'}") if ($logger->is_debug());
-		
+		$logger->debug( "final return of status: " . $$requestObject{'stat'}) if ($logger->is_debug());
+
 #TODO reconcile the '"string" data that comes back from above and how we output it (errors, etc...)
 		if($$requestObject{'headers_out'})
 		{
@@ -2575,12 +2575,18 @@ sub doSystemPOST(){
 	my $device_fields=&getFieldList('device',1);
 	my $meta_fields=&getFieldList($$requestObject{'entity'},1);
 	my ($sql,$set_sql,$parms,@errors,$rv);
-	$data->{'inventory_component_type'} = 'system' unless $data->{'inventory_component_type'}; 
+	$data->{'inventory_component_type'} = 'system' unless $data->{'inventory_component_type'};
 	if($data->{'ip_address'} && !$data->{'data_center_code'})
 	{
 
 		$data->{'data_center_code'}=&lookupDC($data->{'ip_address'});
 	}
+
+	if (!length("$fqdn")) {
+		$$requestObject{'stat'}=Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
+		return "must specify fqdn";
+	}
+
 	$dbs->begin_work;
 	# construct insert sql for device table
 	foreach(@$device_fields)
