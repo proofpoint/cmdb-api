@@ -63,6 +63,10 @@ for my $system (@$data) {
 	my $fqdn = $system->{fqdn};
 	next if ($system->{is_virtual} eq 'true');
 	next if ($system->{manufacturer} =~ /^(Bochs|KVM|Red Hat|VMWare)/);
+	if (!(defined($system->{asset_tag_number}) &&
+	      defined($system->{serial_number}))) {
+		next;
+	}
 
 	@query = ('entity_name=device',
 		  'entity_key=' . $fqdn,
@@ -78,9 +82,9 @@ for my $system (@$data) {
 	}
 }
 
-my @fields = ('fqdn', 'asset_tag_number', 'serial_number', 'data_center_code',
-	      'date_disposed', 'manufacturer',
-	      'product_name',
+my @fields = ('fqdn', 'inventory_component_type', 'asset_tag_number',
+	      'serial_number', 'data_center_code','date_disposed',
+	      'manufacturer', 'product_name',
 	      #'is_virtual', 'virtual', 'notes'
 	     );
 
