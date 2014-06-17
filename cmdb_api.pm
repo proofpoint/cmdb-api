@@ -1634,7 +1634,7 @@ sub doEnvironmentsServicesGET() {
 	my $list = join(', ', map { "'$_'" } @parents);
 	$sql = "select name, environment_name, s.svc_id, type, data_key, data_value from " .
 	       " (select name, environment_name, svc_id, type from service_instance " .
-	       "  where type != 'environment' ";
+	       "  where (type != 'environment' or type is NULL) ";
 
 	if (defined $service) {
 		$sql .= "and name like '$service' ";
