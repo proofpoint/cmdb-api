@@ -60,6 +60,8 @@ my $opt = Optconfig->new('cmdb_api', { 'driver=s' => 'mysql',
                                       'database' => 'inventory',
                                       'debug' => 1,
                                       'prism_domain' => 'prism.ppops.net',
+				      'default_domain' => 'ppops.net',
+				      'valid_domains' => [ 'prism.ppops.net', 'ppops.net' ],
                                       'logconfig' => '/var/www/cmdb_api/log4perl.conf',
                                       'lexicon' => '/var/www/cmdb_api/pp_lexicon.xml',
                                       'entities' => {
@@ -678,6 +680,19 @@ sub doProvisionGET()
 {
 	my $requestObject=shift;
 	my ($sql,$sth,$rv);
+	my $domain = $opt->{'default_domain'};
+
+	if($$requestObject{'query'}{'domain'}) {
+		$domain = $$requestObject{'query'}{'domain'};
+		my @matches = grep { /^$domain$/ } @{$opt->{'valid_domains'}};
+
+		if (!@matches) {
+			$$requestObject{'stat'}=Apache2::Const::HTTP_FAILED_DEPENDENCY;
+			return 'domain must be one of the following: ' .
+			  join(',', @{$opt->{'valid_domains'}});
+		}
+	}
+
 	# this code seems pointless, why check for length 7 if we are going to remove chars?
 	if($$requestObject{'query'}{'serial_number'} && length($$requestObject{'query'}{'serial_number'}) == 7 )
 	{
@@ -736,7 +751,7 @@ sub doProvisionGET()
 		# call setNewName which will rename if it doesn't match
 		$$new{'fqdn'}=$$data[0]{'fqdn'};
 		$$new{'status'}=$$data[0]{'status'};
-		$newname=&setNewName($new, '.ppops.net');
+		$newname=&setNewName($new, '.' . $domain);
 		# set the IP for this system since it's coming online from provisioning vlan
 		# validate that the IP is on the provisioning vlan
 		if($$requestObject{'query'}{'ip_address'} && $$requestObject{'query'}{'ip_address'} =~ /10\.\d{1,3}\.25/)
@@ -760,7 +775,7 @@ sub doProvisionGET()
 			return 'missing data (inventory_component_type)';
 		}
 		$$new{'status'}='idle';
-		$newname=&setNewName($new, '.ppops.net');
+		$newname=&setNewName($new, '.' . $domain);
 		if($newname=~/ERROR/)
 		{
 			$$requestObject{'stat'}=Apache2::Const::HTTP_FAILED_DEPENDENCY;
@@ -1754,7 +1769,9 @@ sub doEnvironmentsServicesPUT(){
 
 	eval {
 		# Get service_instance record for the requested service
-		$sql = "select svc_id,type,name,environment_name,note from service_instance where environment_name=? and name=? and type!='environment'";
+		$sql = "select svc_id,type,name,environment_name,note from " .
+		  "service_instance where environment_name=? and name=? and " .
+		    "(type != 'environment' or type is NULL)";
 		$sth = $dbh->prepare($sql);
 		executeDbStatement($sth, $sql, $environment, $service);
 		$lkup_data = $sth->fetchall_arrayref({}, undef);
