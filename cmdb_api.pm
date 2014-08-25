@@ -1928,7 +1928,14 @@ sub doEnvironmentsServicesPOST(){
 	# FIXME: should this be how we handle this?  No point in specifying either
 	# of these attributes in the request.
 	delete $data->{svc_id};
-	$data->{name} = $service;
+	if($service)
+	{
+		$data->{name} = $service;		
+	}
+	else
+	{
+		$service = $data->{name};
+	}
 	$data->{'environment_name'} = $environment;
 
 	if (not defined $service) {
@@ -2248,7 +2255,10 @@ sub doSystemGET(){
 			}
 			# my $var=$$requestObject{'query'}{$_};
 			# $var=~s/\*/%/g;
-			$getparams{$_}{val} =~ s/\*/%/g;
+			if($op !~ /RLIKE/)
+			{
+				$getparams{$_}{val} =~ s/\*/%/g;
+			}
 			#push(@$parms,$var);
 			push(@$parms,$getparams{$_}{val});
 		}
@@ -2282,7 +2292,10 @@ sub doSystemGET(){
 				# my $var=$$requestObject{'query'}{$_};
 				# $var=~s/\*/%/g;
 				# push(@$parms,$var);
-				$getparams{$_}{val} =~ s/\*/%/g;
+				if($op !~ /RLIKE/)
+				{
+					$getparams{$_}{val} =~ s/\*/%/g;
+				}
 				push(@$parms,$getparams{$_}{val});
 			}
 		}

@@ -16,7 +16,6 @@
 # limitations under the License.
 ############
 
-use lib qw(/var/www/cmdb_api /opt/pptools);
-use ppenv;
+use lib qw(/var/www/cmdb_api /opt/cmdb /opt/cmdb-api /opt/cmdb_api);
 use cmdb_api;
 1;
