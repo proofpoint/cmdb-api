@@ -70,7 +70,6 @@ my $opt = Optconfig->new('cmdb_api', { 'driver=s' => 'mysql',
 											datacenter_subnet=>'Generic',
 											data_center=>'Generic',
 											role=>'Generic',
-											pod_cluster=>'Generic',
 											snat=>'Generic',
 											pool=>'Generic',
 											cluster=>'Generic',
@@ -78,16 +77,6 @@ my $opt = Optconfig->new('cmdb_api', { 'driver=s' => 'mysql',
 											cluster_mta=>'Generic',
 											system=>'System',
 											device=>'System',
-											blade_chassis=>'System',
-											console_server=>'System',
-											firewall=>'System',
-											load_balancer=>'System',
-											network_switch=>'System',
-											power_strip=>'System',
-											router=>'System',
-											storage_head=>'System',
-											storage_shelf=>'System',
-											device_ip=>'Generic',
 											newhostname=>'Provision',
 											pcmsystemname=>'ProvisionPcm',
 											user=>'Generic',
@@ -97,7 +86,6 @@ my $opt = Optconfig->new('cmdb_api', { 'driver=s' => 'mysql',
 											inv_normalizer=>'Generic',
 											fact=>'TrafficControl',
 											change_queue=>'ChangeQueue',
-											ip=>'Generic',
 											service_instance=>'Generic',
 											service_instance_data=>'Generic',
 											instance_size=>'Generic',
@@ -1049,6 +1037,11 @@ sub doGenericPUT
 	else
 	{
 		$dbs->commit;
+		# check to see if key value was chnaged during this put, and adjust for GET
+		if($$data{ $tree->{entities}->{$$requestObject{'entity'}}->{key} })
+		{
+			$$requestObject{'path'}[0] = $$data{ $tree->{entities}->{$$requestObject{'entity'}}->{key} };
+		}
 		return &doGenericGET($requestObject);
 	}
 	
@@ -1870,6 +1863,15 @@ sub doEnvironmentsServicesPUT(){
 		}
 
 		$dbh->commit;
+
+		#adjust key path, if key field value was changed
+		if($service_updates{'name'})
+		{
+			$logger->debug(make_json($requestObject));
+			$requestObject->{'path'}->[2] = $service_updates{'name'}[1];
+			$logger->debug(make_json($requestObject));
+		}
+
 
 		$new_value = &doEnvironmentsServicesGET($requestObject);
 		if ($did_update) {

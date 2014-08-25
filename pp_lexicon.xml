@@ -18,130 +18,6 @@
 <pp_lexicon version="1.2.1">
     <!-- These are the top level inventory API objects -->
     <entities>
-        <device_ip key="ipaddress">
-            <ipaddress>
-                <label>IP</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-            </ipaddress>
-            <fqdn refers_to="/pp_lexicon/entities/system" required="true">
-                <label>Name</label>
-                <flavor>config</flavor>
-                <format>string</format>
-                <fact>fqdn</fact>
-            </fqdn>
-            <note>
-                <label>Notes</label>
-                <flavor>config</flavor>
-                <format>string</format>
-                <required>false</required>
-            </note>
-        </device_ip>
-        <cluster key="cluster_id">
-            <status>
-                <label>Status</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-            </status>
-            <cluster_id>
-                <label>Cluster ID</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-            </cluster_id>
-            <license_id>
-                <label>License ID</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-            </license_id>
-            <customer_id>
-                <label>Customer ID</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-            </customer_id>
-            <customer_name>
-                <label>Customer Name</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-            </customer_name>
-            <ctsprovisioncall>
-                <label>CTS Provision Call</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-            </ctsprovisioncall>
-            <timezone>
-                <label>TZ</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-            </timezone>
-            <pps_version>
-                <label>PPS Vers</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-            </pps_version>
-            <filter_master>
-                <label>Filter Master</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-            </filter_master>
-            <prskey>
-                <label>PRS Key</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-            </prskey>
-            <primary_domain>
-                <label>Primary Domain</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-            </primary_domain>
-        </cluster>
-        <cluster_mta key="cluster_id">
-            <cluster_id>
-                <label>Cluster ID</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-            </cluster_id>
-            <mta_ip>
-                <label>MTA IP</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-            </mta_ip>
-            <mta_domain>
-                <label>MTA Domain</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-            </mta_domain>
-            <in_out>
-                <label>In Out</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-                <enumeration>
-                    <enumerator>inbound</enumerator>
-                    <enumerator>outbound</enumerator>
-                </enumeration>
-            </in_out>
-            <mta_domain>
-                <label>Priority</label>
-                <flavor>config</flavor>
-                <required>true</required>
-                <format>string</format>
-            </mta_domain>
-        </cluster_mta>
         <vip key="comkey">
             <name>
                 <label>VIP Name</label>
@@ -149,12 +25,12 @@
                 <required>true</required>
                 <format>string</format>
             </name>
-            <ip_address>
+            <ipaddress>
                 <label>Destination</label>
                 <flavor>config</flavor>
                 <required>false</required>
                 <format>string</format>
-            </ip_address>
+            </ipaddress>
             <pool>
                 <label>Pool</label>
                 <flavor>config</flavor>
@@ -280,10 +156,9 @@
                 <format>string</format>
             </config>
         </snat>
-        <data_center key="data_center_code" field_order="data_center_code,valid_ip_ranges,data_center_vendor,data_center_city,data_center_country,data_center_telephone">
+        <data_center key="data_center_code" field_order="data_center_code,data_center_vendor,data_center_city,data_center_country,data_center_telephone">
             <data_center_code>
                 <label>Datacenter</label>
-                <flavor>fact</flavor>
                 <required>true</required>
                 <format>string</format>
                 <!--                 <validation><member_of>../enumeration</member_of></validation>-->
@@ -291,10 +166,9 @@
             <data_center_vendor label="Vendor"/>
             <data_center_city label="City"/>
             <data_center_country label="Country"/>
-            <data_center_telephone label="Phone"/>
-            <valid_ip_ranges label="IP Ranges"/>
+            <data_center_phone label="Phone"/>
         </data_center>
-        <datacenter_subnet key="id" field_order="id,subnet,ipv6_subnet,data_center_code,nodes,az_id">
+        <datacenter_subnet label="DataCenter" key="id" field_order="id,subnet,ipv6_subnet,data_center_code,nodes,az_id">
             <id>
                 <label>ID</label>
                 <flavor>config</flavor>
@@ -319,25 +193,17 @@
                 <format>string</format>
                 <required>false</required>
             </vlan>
-            <data_center_code flavor="fact" maps_to="/pp_lexicon/entities/data_center/data_center_code" required="false"/>
+            <data_center_code flavor="config" maps_to="/pp_lexicon/entities/data_center/data_center_code" required="false"/>
             <notes>
                 <label>Notes</label>
                 <flavor>config</flavor>
                 <format>text</format>
                 <required>false</required>
             </notes>
-            <ipv6_subnet>
-                <label>IPv6 Subnet</label>
-                <format>string</format>
-            </ipv6_subnet>
-            <az_id>
-                <label>AZ ID</label>
-                <format>string</format>
-            </az_id>
         </datacenter_subnet>
         <rack key="rack_code">
-            <data_center_code flavor="fact" maps_to="/pp_lexicon/entities/data_center/data_center_code" required="true"/>
-            <cage_code flavor="fact" maps_to="/pp_lexicon/entities/cage/cage_code" required="true"/>
+            <data_center_code maps_to="/pp_lexicon/entities/data_center/data_center_code" required="true"/>
+            <cage_code maps_to="/pp_lexicon/entities/cage/cage_code" required="true"/>
             <rack_code maps_to="/pp_lexicon/data_elements/string" required="false"/>
         </rack>
         <service_instance key="svc_id" field_order="svc_id,name,type,note,environment_name">
@@ -391,7 +257,7 @@
                 <format>string</format>
                 <fact>serial_number</fact>
             </serial_number>
-            <system_type field_category="main" required="false">
+            <system_type required="false">
                 <label>Business</label>
                 <flavor>config</flavor>
                 <format>string</format>
@@ -413,7 +279,7 @@
                 <validation>
                     <regex>/.*/</regex>
                 </validation>
-                <fact>betterip,ipaddress</fact>
+                <fact>betterip,ipaddress,ip_address</fact>
             </ipaddress>
             <macaddress required="true">
                 <label>MAC Address</label>
@@ -439,7 +305,7 @@
             </rack_code>
             <rack_position field_category="HW Info" >
                 <label>Rack Position</label>
-                <flavor>fact</flavor>
+                <flavor>config</flavor>
                 <format>string</format>
                 <validation>
                     <is_int/>
@@ -453,13 +319,13 @@
                 <fact>manufacturer</fact>
                 <enumeration attribute="manufacturer" entity="system"/>
             </manufacturer>
-            <product_name field_category="HW Info" >
+            <productname field_category="HW Info" >
                 <label>Product</label>
                 <!-- <flavor>fact</flavor>-->
                 <format>string</format>
-                <fact>product_name</fact>
-                <enumeration attribute="product_name" entity="system"/>
-            </product_name>
+                <fact>productname</fact>
+                <enumeration attribute="productname" entity="system"/>
+            </productname>
             <created_by label="Created by" maps_to="/pp_lexicon/data_elements/string" required="false"/>
             <date_created label="Created at" required="false" type="date"/>
             <date_modified label="Modified at" required="false" type="date"/>
@@ -486,82 +352,14 @@
                 </validation>
             </status>
         </device>
-        <power_strip extends="/pp_lexicon/entities/device" key="fqdn">
-            <agent_type maps_to="/pp_lexicon/data_elements/string" required="false"/>
-        </power_strip>
-        <console_server extends="/pp_lexicon/entities/device" key="fqdn">
-            <agent_type maps_to="/pp_lexicon/data_elements/string" required="false"/>
-        </console_server>
-        <router extends="/pp_lexicon/entities/device" key="fqdn">
-            <asset_tag_number>
-                <label>Asset Tag</label>
-                <format>string</format>
-            </asset_tag_number>
-            <operating_system>
-                <label>OS</label>
-                <flavor>config</flavor>
-                <format>string</format>
-                <fact>operatingsystem</fact>
-            </operating_system>
-            <operating_system_release>
-                <label>OS Release</label>
-                <flavor>config</flavor>
-                <format>string</format>
-                <fact>operatingsystemrelease</fact>
-            </operating_system_release>
-            <agent_type maps_to="/pp_lexicon/data_elements/string" required="false"/>
-        </router>
-        <load_balancer extends="/pp_lexicon/entities/device" key="fqdn">
-            <asset_tag_number>
-                <label>Asset Tag</label>
-                <format>string</format>
-            </asset_tag_number>
-            <operating_system>
-                <label>OS</label>
-                <flavor>config</flavor>
-                <format>string</format>
-                <fact>operatingsystem</fact>
-            </operating_system>
-            <operating_system_release>
-                <label>OS Release</label>
-                <flavor>config</flavor>
-                <format>string</format>
-                <fact>operatingsystemrelease</fact>
-            </operating_system_release>
-            <agent_type maps_to="/pp_lexicon/data_elements/string" required="false"/>
-            <vips maps_to="/pp_lexicon/entities/vips" required="false"/>
-        </load_balancer>
-        <network_switch extends="/pp_lexicon/entities/device" key="fqdn">
-            <asset_tag_number>
-                <label>Asset Tag</label>
-                <format>string</format>
-            </asset_tag_number>
-            <operating_system>
-                <label>OS</label>
-                <flavor>config</flavor>
-                <format>string</format>
-                <fact>operatingsystem</fact>
-            </operating_system>
-            <operating_system_release>
-                <label>OS Release</label>
-                <flavor>config</flavor>
-                <format>string</format>
-                <fact>operatingsystemrelease</fact>
-            </operating_system_release>
-            <power_supply_watts>
-                <label>Power Supply(Watts)</label>
-                <flavor>fact</flavor>
-                <format>float</format>
-                <validation>
-                    <is_float/>
-                </validation>
-            </power_supply_watts>
-            <agent_type maps_to="/pp_lexicon/data_elements/string" required="false"/>
-        </network_switch>
-        <system extends="/pp_lexicon/entities/device" key="fqdn" field_order="fqdn,status,system_type,inventory_component_type,roles,ipaddress,environment_name,svc_id">
+        <system extends="/pp_lexicon/entities/device" key="fqdn" field_order="fqdn,status,inventory_component_type,roles,ipaddress,environment_name,svc_id,notes">
             <svc_id field_category="main" label="Service Record" maps_to="/pp_lexicon/data_elements/int" required="false">
                 <enumeration attribute="name" entity="service_instance"/>
             </svc_id>
+            <ipmi_ip label="IPMI Address" field_category="HW Info" />
+            <hardware_class field_category="HW Info" label="Class" required="false">
+                <enumeration attribute="hardware_class" entity="hardware_model"/>
+            </hardware_class>
             <agent_type flavor="fact" label="Agent Type" maps_to="/pp_lexicon/data_elements/string" required="false"/>
             <drac_version  field_category="HW Info" maps_to="/pp_lexicon/data_elements/string" required="false">
                 <label>Drac Version</label>
@@ -593,7 +391,7 @@
             <raidbaddrives  field_category="HW Info" flavor="fact" maps_to="/pp_lexicon/data_elements/string" required="false">
                 <label>Raid Bad Drives</label>
             </raidbaddrives>
-            <notes format="text" maps_to="/pp_lexicon/data_elements/string" required="false">
+            <notes format="text" field_category="main" maps_to="/pp_lexicon/data_elements/string" required="false">
                 <label>Notes</label>
             </notes>
             <tags maps_to="/pp_lexicon/data_elements/string" required="false">
@@ -602,15 +400,6 @@
             <warranty_info  field_category="HW Info" format="text" maps_to="/pp_lexicon/data_elements/string" required="false">
                 <label>Warranty Info</label>
             </warranty_info>
-            <pps_agents flavor="fact" maps_to="/pp_lexicon/data_elements/string" required="false">
-                <label>PPS Agents</label>
-            </pps_agents>
-            <pps_clusterid maps_to="/pp_lexicon/data_elements/string" required="false">
-                <label>ClusterId</label>
-            </pps_clusterid>
-            <pps_customerid maps_to="/pp_lexicon/data_elements/string" required="false">
-                <label>CustomerId</label>
-            </pps_customerid>
             <asset_tag_number field_category="HW Info" >
                 <label>Asset Tag</label>
                 <flavor>config</flavor>
@@ -626,38 +415,35 @@
             <physical_processor_count  field_category="HW Info" maps_to="/pp_lexicon/data_elements/string" required="false">
                 <label>Processor Count</label>
             </physical_processor_count>
-            <processors  field_category="HW Info" type="array">
-                <label>Processors</label>
-                <processor maps_to="/pp_lexicon/entities/processor"/>
-            </processors>
-            <memory_size  field_category="HW Info" maps_to="/pp_lexicon/data_elements/string" required="false">
+            <memorysize  field_category="HW Info" maps_to="/pp_lexicon/data_elements/string" required="false">
                 <label>Memory</label>
-            </memory_size>
-            <ipv6_address maps_to="/pp_lexicon/data_elements/string" required="false">
+        <flavor>fact</flavor>
+            </memorysize>
+            <ipv6address maps_to="/pp_lexicon/data_elements/string" required="false">
                 <label>IPv6 Address</label>
-            </ipv6_address>
+            </ipv6address>
             <virtual flavor="fact" maps_to="/pp_lexicon/data_elements/string" required="false">
                 <label>VM Type</label>
             </virtual>
-            <operating_system>
+            <operatingsystem>
                 <label>OS</label>
                 <flavor>config</flavor>
                 <format>string</format>
                 <fact>operatingsystem</fact>
                 <enumeration attribute="operating_system" entity="system"/>
-            </operating_system>
-            <operating_system_release>
+            </operatingsystem>
+            <operatingsystemrelease>
                 <label>OS Release</label>
                 <flavor>config</flavor>
                 <format>string</format>
                 <fact>operatingsystemrelease</fact>
-            </operating_system_release>
-            <kernel_release>
+            </operatingsystemrelease>
+            <kernelrelease>
                 <label>Kernel Release</label>
                 <flavor>fact</flavor>
                 <format>string</format>
                 <fact>kernelrelease</fact>
-            </kernel_release>
+            </kernelrelease>
             <interfaces  field_category="HW Info" flavor="fact">
                 <label>NICs</label>
                 <required>false</required>
@@ -696,6 +482,7 @@
                 <format>multiselect</format>
                 <enumeration attribute="role_id" entity="role"/>
             </roles>
+            <role_version label="Role Version" field_catetory="main" fact="notestore_version" />
             <customers type="array">
                 <label>Customers</label>
                 <customer maps_to="/pp_lexicon/entities/customer"/>
@@ -730,18 +517,6 @@
                 <format>int_timestamp</format>
             </power_consumption_peak_time>
             <is_virtual label="Virtual" maps_to="/pp_lexicon/data_elements/bool" required="false"/>
-            <pps_config_role>
-                <label>PPS Configured Roles</label>
-                <required>false</required>
-                <flavor>fact</flavor>
-                <format>string</format>
-            </pps_config_role>
-            <pps_version>
-                <label>PPS Version</label>
-                <required>false</required>
-                <flavor>fact</flavor>
-                <format>string</format>
-            </pps_version>
             <guest_fqdns type="array">
                 <label>Guest Hosts</label>
                 <fqdn maps_to="/pp_lexicon/data_elements/fqdn" required="false"/>
@@ -757,8 +532,9 @@
                 <format>string</format>
             </audit_info>
             <environment_name field_category="main" label="Environment" maps_to="/pp_lexicon/data_elements/string" required="false">
-            <enumeration attribute="name" entity="environments"/> 
+            <enumeration attribute="name" entity="environments"/>
             </environment_name>
+
             <config_agent_timestamp field_category="Puppet" label="Puppet Timestamp" meta="true" required="false" type="date"/>
             <config_agent_status  field_category="Puppet" label="Puppet Status" maps_to="/pp_lexicon/data_elements/string" meta="true" required="false"/>
             <config_agent_summary  field_category="Puppet" label="Puppet Summary" maps_to="/pp_lexicon/data_elements/string" meta="true" required="false"/>
@@ -847,21 +623,16 @@
         <hardware_model key="hardware_class">
             <manufacturer>
                 <label>Manufacturer</label>
-                <flavor>fact</flavor>
                 <format>string</format>
-                <fact>manufacturer</fact>
             </manufacturer>
             <product_name>
                 <label>Product</label>
-                <!-- <flavor>fact</flavor>-->
                 <format>string</format>
-                <fact>product_name</fact>
             </product_name>
             <hardware_class label="HW Class" maps_to="/pp_lexicon/data_elements/product_variant" required="false"/>
             <power_supply_count label="Pwr Supply Count" maps_to="/pp_lexicon/data_elements/power_supply_count" required="false"/>
             <power_supply_watts>
                 <label>Power Supply(Watts)</label>
-                <flavor>fact</flavor>
                 <format>float</format>
                 <validation>
                     <is_float/>
@@ -877,11 +648,10 @@
             <name label="Name" maps_to="/pp_lexicon/data_elements/string" required="true"/>
             <environment_name field_category="main" label="Parent Environment" maps_to="/pp_lexicon/data_elements/string" required="true">
             <enumeration attribute="name" entity="environments"/> 
-            </environment_name>            
+            </environment_name>
             <note label="Note" maps_to="/pp_lexicon/data_elements/string" required="false"/>
         </environments>
-        <!-- environmentservice is the service_instance entity that is served from a different REST API --> 
-        <environmentservice key="name">
+        <environmentservice key="name" field_order="name,type,note,environment_name">
             <name label="SVC Name" maps_to="/pp_lexicon/data_elements/string" required="true"/>
             <type label="Type" maps_to="/pp_lexicon/data_elements/string" required="false"/>
             <note label="Note" maps_to="/pp_lexicon/data_elements/string" required="false"/>
@@ -889,5 +659,6 @@
                 <enumeration attribute="name" entity="environments"/> 
             </environment_name>
         </environmentservice>
+
     </entities>
 </pp_lexicon>
