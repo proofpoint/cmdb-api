@@ -41,6 +41,7 @@ use Apache::DBI;
 use Date::Manip;
 use Optconfig;
 use DBI;
+use NOMS::JCEL;
 
 sub eat_json {
    my ($json_text, $opthash) = @_;
@@ -1067,8 +1068,13 @@ sub doGenericPOST
 		$$requestObject{'stat'}=Apache2::Const::HTTP_FORBIDDEN;
 		return 'ACL blocked change: ' . &make_json($blocked_changes);
 	}
+
 	foreach my $f (@{&getFieldList($$requestObject{'entity'})})
 	{
+		if((!exists $$data{$f} || $$data{$f} == '') && $tree_extended->{entities}->{$entity}->{$f}->{default_value})
+		{
+			$$data{$_} = $tree_extended->{entities}->{$entity}->{$f}->{default_value};
+		}
 		if(exists $$data{$f})
 		{
 			$$data{$f}=&doFieldNormalization($entity,$f,$$data{$f});
@@ -1543,7 +1549,7 @@ sub parseQueryParams
             my $op = $2;
             my $val = $3;
             next if $key =~ /^_/;
-			next unless (grep(/^$key$/,@$valid_fields));
+			next if (!grep(/^$key$/,@$valid_fields) && scalar(@$valid_fields) > 0);
             $val =~ s/'//g;
 			$op = 'LIKE' if $op eq '=';
 			$op = 'NOT LIKE' if $op eq '!=';
@@ -1623,8 +1629,8 @@ sub doEnvironmentsServicesGET() {
 	$sql .= "and environment_name in ($list)) as s " .
 	        "left join service_instance_data as d on s.svc_id = d.svc_id " .
 	        "order by field(environment_name, $list)";
-
 	$rtn = &doSql($sql, undef);
+
 	if ($$rtn{'err'}) {
 		$$requestObject{'stat'}=Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
 		return $$rtn{'err'} . " : " . $$rtn{'errstr'};
@@ -1655,10 +1661,54 @@ sub doEnvironmentsServicesGET() {
 		}
 	}
 
-	if (scalar(keys %hash) == 1) {
-		return (values %hash)[0];
-	} elsif (keys %hash) {
+	if ($requestObject->{'getparams'}) {
+		parseQueryParams($requestObject->{'getparams'}, \%getparams,[]);
+	}
+	# remove params that would have gotten parsed into the sql query
+	foreach my $query_parm (['name','type'])
+	{
+		delete $getparams{$query_parm};
+	}	
+
+	# if other attribute querys are coming in, then evaluate them assemble new results of matches
+	if(scalar(keys(%getparams)) > 0)
+	{
+        my @ranges=split(/[&;]/, $requestObject->{'getparams'});
+		my $jcel_params={};
+        foreach my $range (@ranges) {
+			next unless $range =~ /(\w+)([!~>=<]+)(.*)/;
+            my $key = $1;
+            my $op = $2;
+            my $val = $3;
+            # we are parsing the query string (yet again).  skip the attrs that get searched by the sql
+			next if (grep(/^$key$/,['name','type']) );
+			$jcel_params->{$key}->{$op}=$val;
+		}
+		my @filtered_results;
+		# assemble jcel config from passed in parameters to use for testing the service records
+		$logger->debug("jcel condition: " . make_json($jcel_params)); 
+		my $jcel = NOMS::JCEL->new($jcel_params);
+		foreach my $service_record_key (keys %hash)
+		{
+			if ($jcel->test($hash{$service_record_key}))
+			{
+				push(@filtered_results,\%{$hash{$service_record_key}});
+			}
+		}
+		return \@filtered_results if scalar(@filtered_results);
+		# there were no results left after filtering. so 
+		$$requestObject{'stat'}=Apache2::Const::HTTP_NOT_FOUND;
+		return;
+
+	}
+
+	# return results as array when query is used
+	if (!defined $service && keys(%hash)) {
 		return [values %hash];
+	} 
+	# otherwise service was accessed via full resource path, so return as record
+	elsif (keys %hash) {
+		return (values %hash)[0];
 	} else {
 		$$requestObject{'stat'}=Apache2::Const::HTTP_NOT_FOUND;
 		return;
@@ -2575,7 +2625,6 @@ sub doSystemPOST(){
 	$data->{'inventory_component_type'} = 'system' unless $data->{'inventory_component_type'}; 
 	if($data->{$IPADDRESSFIELD} && !$data->{'data_center_code'})
 	{
-
 		$data->{'data_center_code'}=&lookupDC($data->{$IPADDRESSFIELD});
 	}
 
@@ -2585,6 +2634,12 @@ sub doSystemPOST(){
 	}
 
 	$dbs->begin_work;
+
+	if((!exists $$data{$_} || $$data{$_} == '') && $tree_extended->{entities}->{'system'}->{$_}->{default_value})
+	{
+		$$data{$_} = $tree_extended->{entities}->{'system'}->{$_}->{default_value};
+	}
+
 	# construct insert sql for device table
 	foreach(@$device_fields)
 	{
