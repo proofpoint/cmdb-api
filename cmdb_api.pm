@@ -62,6 +62,8 @@ my $opt = Optconfig->new('cmdb_api', { 'driver=s' => 'mysql',
                                       'prism_domain' => 'prism.ppops.net',
                                       'logconfig' => '/var/www/cmdb_api/log4perl.conf',
                                       'lexicon' => '/var/www/cmdb_api/pp_lexicon.xml',
+                                      'ipaddress_attribute' => "ip_address",
+                                      "traffic_control_search_fields" => ["fqdn","macaddress","ipaddress"],
                                       'entities' => {
                                       		acl=>'Acl',
 											vip=>'Generic',
@@ -101,7 +103,8 @@ my $opt = Optconfig->new('cmdb_api', { 'driver=s' => 'mysql',
 											instance_size=>'Generic',
 									        instance_location=>'Generic',
 									        column_lkup=>'Column_lkup',
-					     					environments=>'Environments'
+					     					environments=>'Environments',
+					     					environmentservice=>'Environments'
                                       }
                                     });
 
@@ -113,19 +116,12 @@ my $valid_entity_apis={
 	'Audit' => 1
 };
 
-##TODO unhardcode this crap
-my @system_native_fields=qw(fqdn inventory_component_type system_type status ip_address
-	mac_address data_center_code cage_code rack_code rack_position manufacturer product_name
-	serial_number agent_reported);
-# my @system_meta_fields=qw(asset_tag_number disk_drive_count file_systems physical_processor_count processors memory_size
-# 	virtual operating_system operating_system_release primary_interface interfaces drac roles customers power_supply_count
-# 	power_supply_watts is_virtual guest_fqdns host_fqdn);
-
 my $DEBUG=$opt->{'debug'};
 my $DBHOST=$opt->{'dbhost'};
 my $DBUSER=$opt->{'dbuser'};
 my $DBPASS=$opt->{'dbpass'};
 my $DATABASE=$opt->{'database'};
+my $IPADDRESSFIELD=$opt->{'ipaddress_attribute'};
 my $DRIVER=$opt->{'driver'};
 my ($lexicon,$tree,$parser);
 my ($parms);
@@ -141,51 +137,11 @@ unless($lexicon)
 }
 
 # database connection
-#my $dbh=DBI->connect("DBI:$DRIVER:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS);
 our $dbh;
 #valid api types. these must exist and be parsable in the lexicon if they are 'Generic' 
 # or have provided do<ENTITY>GET/PUT/POST functions
 
 my $valid_entities = $opt->{'entities'};
-
-# my $valid_entities={
-# 	acl=>'Acl',
-# 	vip=>'Generic',
-# 	datacenter_subnet=>'Generic',
-# 	role=>'Generic',
-# 	pod_cluster=>'Generic',
-# 	snat=>'Generic',
-# 	pool=>'Generic',
-# 	cluster=>'Generic',
-# 	hardware_model=>'Generic',
-# 	cluster_mta=>'Generic',
-# 	system=>'System',
-# 	device=>'System',
-# 	blade_chassis=>'System',
-# 	console_server=>'System',
-# 	firewall=>'System',
-# 	load_balancer=>'System',
-# 	network_switch=>'System',
-# 	power_strip=>'System',
-# 	router=>'System',
-# 	storage_head=>'System',
-# 	storage_shelf=>'System',
-# 	device_ip=>'Generic',
-# 	newhostname=>'Provision',
-# 	pcmsystemname=>'ProvisionPcm',
-# 	user=>'Generic',
-# 	currentUser=>'User',
-# 	inv_audit=>'Generic',
-# 	audit=>'Audit',
-# 	inv_normalizer=>'Generic',
-# 	fact=>'TrafficControl',
-# 	change_queue=>'ChangeQueue',
-# 	ip=>'Generic',
-# 	service_instance=>'Generic',
-# 	service_instance_data=>'Generic',
-# 	instance_size=>'Generic',
-#     instance_location=>'Generic'
-# 	};
 
 my $versions=[ 'v1' ];
 
@@ -200,7 +156,7 @@ if($@)
 
 $logger->info("$lexicon is xml ok"); 
 
-my $tree_extended;
+our $tree_extended;
 $tree_extended=&eat_json(&make_json($tree));
 # loop through entities and add base attributes to things that subclass other stuff
 foreach(keys(%{$tree_extended->{entities}}))
@@ -458,7 +414,7 @@ sub runACL()
 	if(ref $groups ne 'ARRAYREF')
 	{
 		$logger->debug("groups ref= ".ref $groups) if ($logger->is_debug());
-		$groups = [split(',',$groups)]; 
+		$groups = [split(',',$groups)] if $groups; 
 	}
  	my $acls = $dbh->selectall_arrayref("select * from acl where entity=?", { Slice => {} },($entity));
 	foreach my $field (keys(%$changes))
@@ -601,7 +557,7 @@ sub doTrafficControlPOST()
 	my ($lkup_data,$lkup);
 	$logger->debug("TC got POST from agent") if ($logger->is_debug());
 	
-	foreach (('fqdn','mac_address','serial_number','ip_address'))
+	foreach (@{$opt->{'traffic_control_search_fields'}})	
 	{
 		# skip serial if not dell tag 
 		next if( $_ eq 'serial_number' && length($data->{$_}) != 7 );
@@ -617,6 +573,31 @@ sub doTrafficControlPOST()
 		$lkup_data='';
 	}
 	$requestObject->{'entity'}='system';
+
+	# loop through the entity field and assign values based on 'fact' designation of attributes
+	# or default to just looking for an entry of the same name
+	my $data_assembled={ 'fqdn' => $data->{'fqdn'}};
+	foreach my $attr (keys(%{$tree_extended->{'entities'}->{'system'}}))
+	{
+		if(ref($tree_extended->{'entities'}->{'system'}->{$attr}) eq 'HASH' && $tree_extended->{'entities'}->{'system'}->{$attr}->{'fact'})
+		{
+			foreach my $fact_lookup (split(',',$tree_extended->{'entities'}->{'system'}->{$attr}->{'fact'}))
+			{
+				$logger->debug("doing fact lookup for $attr with $fact_lookup");
+				if($data->{$fact_lookup})
+				{
+					$data_assembled->{$attr}= $data->{$fact_lookup};
+					$logger->debug("found data lookup for $attr in fact $fact_lookup: $data->{$fact_lookup}");
+					last;
+				}
+			}
+		}
+		else
+		{
+			$data_assembled->{$attr}= $data->{$attr} if($data->{$attr});
+		}
+	}
+	$requestObject->{'body'}=make_json($data_assembled,{allow_nonref=>1});
 
 	# if we found the entry, then setup for PUT else do POST
 	if($lkup_data)
@@ -712,7 +693,7 @@ sub doProvisionGET()
 	
 	# gather data sent in with the call
 	my $new={};
-	foreach my $f (('rack_code','rack_position','asset_tag_number','manufacturer','product_name','serial_number','ip_address','mac_address','inventory_component_type'))
+	foreach my $f (('rack_code','rack_position','asset_tag_number','manufacturer','product_name','serial_number',$IPADDRESSFIELD,'mac_address','inventory_component_type'))
 	{
 		$$requestObject{'query'}{$f}=~s/^\s+//g;
 		$$requestObject{'query'}{$f}=~s/\s+$//g;
@@ -739,15 +720,15 @@ sub doProvisionGET()
 		$newname=&setNewName($new, '.ppops.net');
 		# set the IP for this system since it's coming online from provisioning vlan
 		# validate that the IP is on the provisioning vlan
-		if($$requestObject{'query'}{'ip_address'} && $$requestObject{'query'}{'ip_address'} =~ /10\.\d{1,3}\.25/)
+		if($$requestObject{'query'}{$IPADDRESSFIELD} && $$requestObject{'query'}{$IPADDRESSFIELD} =~ /10\.\d{1,3}\.25/)
 		{
 			$logger->info("updating IP for system entry");
-			$$requestObject{'query'}{'ip_address'}=~s/^\s//g;
-			$$requestObject{'query'}{'ip_address'}=~s/\s$//g;
-			$sql='update device set ip_address=? where fqdn=?';
+			$$requestObject{'query'}{$IPADDRESSFIELD}=~s/^\s//g;
+			$$requestObject{'query'}{$IPADDRESSFIELD}=~s/\s$//g;
+			$sql="update device set $IPADDRESSFIELD=? where fqdn=?";
 			my $sth=$dbh->prepare($sql);
-			$logger->debug("executing: $sql with $$requestObject{'query'}{'ip_address'},$newname") if ($logger->is_debug());
-			my $rv=$sth->execute(($$requestObject{'query'}{'ip_address'},$newname));
+			$logger->debug("executing: $sql with $$requestObject{'query'}{$IPADDRESSFIELD},$newname") if ($logger->is_debug());
+			my $rv=$sth->execute(($$requestObject{'query'}{$IPADDRESSFIELD},$newname));
 			$logger->error($sth->err . " : " . $sth->errstr) if ($sth->err);				
 		}
 	}
@@ -1596,8 +1577,7 @@ sub doEnvironmentsServicesGET() {
 	$environment = $requestObject->{'path'}[0];
 	$service = $requestObject->{'path'}[2];
 
-	my $sql = "select name, environment_name from service_instance " .
-	          "where type='environment'";
+	my $sql = "select name, environment_name from environments";
 
 	my $rtn = &doSql($sql, undef);
 	if ($$rtn{'err'}) {
@@ -1632,14 +1612,14 @@ sub doEnvironmentsServicesGET() {
 
 	%hash = ();
 	my $list = join(', ', map { "'$_'" } @parents);
-	$sql = "select name, environment_name, s.svc_id, type, data_key, data_value from " .
+	$sql = "select name, environment_name, note, s.svc_id, type, data_key, data_value from " .
 	       " (select name, environment_name, svc_id, type from service_instance " .
 	       "  where (type != 'environment' or type is NULL) ";
 
 	if (defined $service) {
 		$sql .= "and name like '$service' ";
 	}
-	
+
 	for my $key (keys %getparams) {
 		$sql .= sprintf "and %s %s '%s' ",
 			$key,
@@ -1664,6 +1644,7 @@ sub doEnvironmentsServicesGET() {
 						  environment_name => $data->{'environment_name'},
 						  type => $data->{'type'},
 						  svc_id => $data->{'svc_id'},
+						  note => $data->{'note'},
 						  };
 		}
 
@@ -1790,16 +1771,17 @@ sub doEnvironmentsServicesPUT(){
 
 		# Determine if we need to modify any fields of the service instance record
 
-		for my $f (&getFieldList('service_instance')) {
+
+		my $fieldlist = &getFieldList('service_instance');
+		for my $f (@{$fieldlist}) {
 			my $value = $lkup_data->{$f};
-			if (defined $value && $value ne $data->{$f}) {
+			if (defined $data->{$f} && $value ne $data->{$f}) {
 				$service_updates{$f} = [ $value, $data->{$f} ];
 			}
 
 			delete $data->{$f}; #ICK
 		}
 		delete $data->{'svc_id'}; #ICK
-
 
 		# Get all service_instance_data records that belong to this instance
 		# We don't care about inheritance for this
@@ -2368,24 +2350,24 @@ sub doSystemPUT(){
 	}
 	if(
 			(
-				$data->{'ip_address'}
-				&& $data->{'ip_address'} ne $lkup_data->{'ip_address'} 
-				
+				$data->{$IPADDRESSFIELD}
+				&& $data->{$IPADDRESSFIELD} ne $lkup_data->{$IPADDRESSFIELD}				
 			)
 			||
 			( 
 				!exists($data->{'data_center_code'}) 
+				#&& defined($lkup_data->{'data_center_code'})
 				&& length($lkup_data->{'data_center_code'})==0 
 			) 
 		)
 	{
-		if($data->{'ip_address'})
+		if($data->{$IPADDRESSFIELD})
 		{
-			$data->{'data_center_code'}=&lookupDC($data->{'ip_address'});			
+			$data->{'data_center_code'}=&lookupDC($data->{$IPADDRESSFIELD});			
 		}
 		else
 		{
-			$data->{'data_center_code'}=&lookupDC($lkup_data->{'ip_address'});			
+			$data->{'data_center_code'}=&lookupDC($lkup_data->{$IPADDRESSFIELD});			
 		}
 	}
 
@@ -2408,7 +2390,7 @@ sub doSystemPUT(){
 	# if the user is not a system user, then error out now if needed
 	$logger->info("changes: " . &make_json($data));
 	$logger->info("blocked changes: " . &make_json($blocked_changes) );
-	if($requestObject->{'user'}->{'systemuser'} ne '1' && scalar(keys(%$blocked_changes)))
+	if(defined($requestObject->{'user'}->{'systemuser'}) && $requestObject->{'user'}->{'systemuser'} ne '1' && scalar(keys(%$blocked_changes)))
 	{
 		$dbs->rollback;
 		$$requestObject{'stat'}=Apache2::Const::HTTP_FORBIDDEN;
@@ -2437,7 +2419,7 @@ sub doSystemPUT(){
 		if(exists $$data{$_})
 		{
 			$set_sql.="," if $set_sql;
-			if( length($$data{$_})==0 )
+			if( defined($$data{$_}) && length($$data{$_})==0 )
 			{	
 				$set_sql.=" d.$_=NULL";		
 				#push(@$parms,undef);
@@ -2575,11 +2557,11 @@ sub doSystemPOST(){
 	my $device_fields=&getFieldList('device',1);
 	my $meta_fields=&getFieldList($$requestObject{'entity'},1);
 	my ($sql,$set_sql,$parms,@errors,$rv);
-	$data->{'inventory_component_type'} = 'system' unless $data->{'inventory_component_type'};
-	if($data->{'ip_address'} && !$data->{'data_center_code'})
+	$data->{'inventory_component_type'} = 'system' unless $data->{'inventory_component_type'}; 
+	if($data->{$IPADDRESSFIELD} && !$data->{'data_center_code'})
 	{
 
-		$data->{'data_center_code'}=&lookupDC($data->{'ip_address'});
+		$data->{'data_center_code'}=&lookupDC($data->{$IPADDRESSFIELD});
 	}
 
 	if (!length("$fqdn")) {

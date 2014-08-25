@@ -206,6 +206,18 @@ CREATE TABLE `role` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
+-- Table structure for table `environments`
+--
+
+DROP TABLE IF EXISTS `environments`;
+CREATE TABLE `environments` (
+  `name` varchar(75) NOT NULL,
+  `note` varchar(255) DEFAULT NULL,
+  `environment_name` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+--
 -- Table structure for table `service_instance`
 --
 
