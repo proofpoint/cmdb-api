@@ -822,10 +822,11 @@ sub setNewName()
 	}
 	# otherwise trying insert
 	else {
-		$sql='insert into device set fqdn=?';
+		$sql='insert into device set date_created=now(),fqdn=?';
 		push(@$parms,$newname);
 	}
 	foreach my $f (keys(%$r)) {
+		next if ($f eq 'date_created');
 		if ($$r{$f} && $f ne 'fqdn') {
 			$sql.=", $f=? ";
 			push(@$parms,$$r{$f});
@@ -2358,6 +2359,7 @@ sub doSystemPUT(){
 	my $lkup_data=&doSystemGET($requestObject);
 	# Check to make sure the date modified/versiom of the record being submitted matches the 
 	# the stored record. if the stored record is newer, return error
+	delete $$data{'date_created'};
 	if( defined $$data{'date_modified'} )
 	{
 				my $date_modified_submitted=ParseDate($$data{'date_modified'});
@@ -2604,6 +2606,8 @@ sub doSystemPOST(){
 		return "must specify fqdn";
 	}
 
+	delete $$data{'date_created'};
+
 	$dbs->begin_work;
 	# construct insert sql for device table
 	foreach(@$device_fields)
@@ -2625,7 +2629,7 @@ sub doSystemPOST(){
 			}
 		}
 	}
-	$sql="insert into device set created_by='', $set_sql";
+	$sql="insert into device set date_created=now(),created_by='', $set_sql";
 	$logger->debug("doing sql: $sql with " . join(',',@$parms) ) if ($logger->is_debug());
 	$dbs->do($sql,{},@$parms) or push(@errors,$dbs->err . ": " . $dbs->errstr);
 	if($dbs->err)
