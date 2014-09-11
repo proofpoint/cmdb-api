@@ -693,13 +693,13 @@ sub doProvisionGET()
 		}
 	}
 
-	# this code seems pointless, why check for length 7 if we are going to remove chars?
-	if($$requestObject{'query'}{'serial_number'} && length($$requestObject{'query'}{'serial_number'}) == 7 )
+	if($$requestObject{'query'}{'serial_number'})
 	{
 		$$requestObject{'query'}{'serial_number'}=~s/^\s+//g;
-		$$requestObject{'query'}{'serial_number'}=~s/\s+$//g;		
+		$$requestObject{'query'}{'serial_number'}=~s/\s+$//g;
 	}
-	if($$requestObject{'query'}{'serial_number'}  && length($$requestObject{'query'}{'serial_number'}) == 7 )
+
+	if($$requestObject{'query'}{'serial_number'})
 	{
 		$sql ='select fqdn from device where serial_number=?';
 		$sth=$dbh->prepare($sql);
