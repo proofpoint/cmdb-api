@@ -235,6 +235,7 @@ sub lkupXMLPath()
 
 # mod perl2 handler
 sub handler() {
+  my $timestarted = time();
  	$dbh=DBI->connect("DBI:$DRIVER:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS);
 	my $r = shift;
 	my $up_uri = $r->unparsed_uri();
@@ -376,6 +377,12 @@ sub handler() {
 	{
 		$logger->error("error parsing api str");
 	}
+  my $timeended = time();
+  my $timetaken = $timeended - $timestarted;
+  if ($timetaken > 30) {
+    use Data::Dumper;
+    $logger->warn("Long request took $timetaken seconds: by ".$$requestObject{'http_auth_user'}." from ".$$requestObject{'ip_address'}." hitting: ".$r->unparsed_uri());
+  }
     return Apache2::Const::OK;
 }
 
@@ -877,7 +884,7 @@ sub setNewName()
 	return $newname;
 }
 
-sub doSql(){
+sub doSql {
 	my $sql=shift;
 	my $parms=shift;
 	my $dbh=DBI->connect("DBI:$DRIVER:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS);
@@ -2249,6 +2256,7 @@ sub doSystemGET(){
             my $key = $1;
             my $op = $2;
             my $val = $3;
+	    $key = 'serial_number' if ($key eq 'pic_instance');
             next if $key =~ /^_/;
 			next unless (grep(/^$key$/,@$device_fields) || grep(/^$key$/,@$meta_fields));
             $val =~ s/'//g;
@@ -2324,7 +2332,7 @@ sub doSystemGET(){
 	}
 	$field_sql.="," if $field_sql;
 	$field_sql.= " ch.count as changes ";
-	$join_sql.=" left join (SELECT entity_key,count(id) as count from change_queue group by entity_key) as ch on d.fqdn=ch.entity_key ";
+	$join_sql.=" left join ch on d.fqdn=ch.entity_key ";
 
 	#$sql="select $field_sql from device d $join_sql where $where_sql group by d.fqdn";
 	$sql="select $field_sql from device d $join_sql ";
@@ -2332,7 +2340,21 @@ sub doSystemGET(){
 	$sql.=" group by d.fqdn";
 
 
+	my $rtn = doSql("create temporary table ch (INDEX idx_entity_key (entity_key)) " .
+	                "select entity_key,count(id) as count from change_queue group by entity_key");
+	if ($$rtn{'err'}) {
+		$$requestObject{'stat'}=Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
+		return $$rtn{'err'} . " : " . $$rtn{'errstr'};
+	}
+
 	my $rec=&recordFetch($requestObject,$sql,$parms);
+
+	$rtn = doSql("drop temporary table ch");
+	if ($$rtn{'err'}) {
+		$$requestObject{'stat'}=Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
+		return $$rtn{'err'} . " : " . $$rtn{'errstr'};
+	}
+
 	if(!$rec)
 	{
 		$$requestObject{'stat'}=Apache2::Const::HTTP_NOT_FOUND;
