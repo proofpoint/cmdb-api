@@ -966,7 +966,7 @@ sub doSql {
 	{
 		return {err=>$sth->err , errstr=> $sth->errstr};
 	}
-	if($sql=~/select/)
+	if($sql=~/^\s*select/i)
 	{
 		$sql_out=$sth->fetchall_arrayref({},undef);	
 	}
