@@ -31,7 +31,7 @@ use APR::Brigade ();
 use APR::Bucket ();
 use Log::Log4perl qw(:easy);
 use Apache2::Filter ();
-use Apache2::Const -compile => qw(OK HTTP_NOT_FOUND HTTP_OK HTTP_FAILED_DEPENDENCY HTTP_NOT_ACCEPTABLE HTTP_NO_CONTENT HTTP_INTERNAL_SERVER_ERROR DECLINED HTTP_ACCEPTED HTTP_CREATED HTTP_UNAUTHORIZED SERVER_ERROR MODE_READBYTES HTTP_CONFLICT HTTP_FORBIDDEN HTTP_METHOD_NOT_ALLOWED);
+use Apache2::Const -compile => qw(OK HTTP_NOT_FOUND HTTP_OK HTTP_FAILED_DEPENDENCY HTTP_NOT_ACCEPTABLE HTTP_NO_CONTENT HTTP_INTERNAL_SERVER_ERROR DECLINED HTTP_ACCEPTED HTTP_CREATED HTTP_UNAUTHORIZED SERVER_ERROR MODE_READBYTES HTTP_CONFLICT HTTP_FORBIDDEN HTTP_METHOD_NOT_ALLOWED HTTP_BAD_REQUEST);
 use APR::Const    -compile => qw(SUCCESS BLOCK_READ);
 use constant IOBUFSIZE => 8192;
 use JSON;
@@ -657,7 +657,6 @@ sub doTrafficControlPOST()
 	foreach (('fqdn','mac_address','serial_number','ip_address'))
 	{
 		# skip serial if not dell tag 
-		next if( $_ eq 'serial_number' && length($data->{$_}) != 7 );
 		$lkup= $dbh->selectall_arrayref("select * from device where $_=?", { Slice => {} },($data->{$_}));
 		if(scalar(@$lkup) == 1)
 		{
@@ -1448,6 +1447,7 @@ sub doChangeQueueGET()
 	# for internal requests:
 	# ro = { entity,  path[0]  query  }
 	
+	my %getparams;
 	my ($keyval,$sql,$parms,$return);
 	$logger->info("processing GET");
 	my $requestObject=shift;
@@ -1456,6 +1456,7 @@ sub doChangeQueueGET()
 	my $device_fields=&getFieldList('device',0);
 	my $change_fields=&getFieldList('change_queue',0);
 	my @field_list;
+	my $where_sql;
 
 	for my $field (@$change_fields) {
 		push @field_list, 'ch.' . $field;
@@ -1466,7 +1467,7 @@ sub doChangeQueueGET()
 		push @field_list, 'd.' . $field;
 	}
 
-	$sql="select " . join(', ', @field_list) . " from change_queue ch left join device d on ch.entity_key=d.fqdn where ";
+	$sql="select " . join(', ', @field_list) . " from change_queue ch left join device d on ch.entity_key=d.fqdn ";
 
 	# check for path key value and add if specified
 	if($$requestObject{'path'}[0])
@@ -1477,28 +1478,30 @@ sub doChangeQueueGET()
 	}
 	$logger->debug("getparms: $$requestObject{getparams}") if ($logger->is_debug());
 	if($$requestObject{getparams}) {
-		my @ranges=split(/[&;]/, $$requestObject{getparams});
-		foreach my $range (@ranges) {
-			next unless $range =~ /(\w+)([!~>=<]+)(.+)/;
-			my $key = $1;
-			my $op = $2;
-			my $val = $3;
-            next if $key =~ /^_/;
-			next unless (grep(/^$key$/,@$device_fields) || grep(/^$key$/,@$change_fields));
-			$val =~ s/'/%/g;
-			$op = 'LIKE' if $op eq '=';
-			$op = 'NOT LIKE' if $op eq '!=';
-			$op = 'RLIKE' if $op eq '~';
-			$op = 'NOT RLIKE' if $op eq '!~';
-			$logger->debug("Found param: $key $op $val") if ($logger->is_debug());
-			$val =~ s/\*/%/g;
-			$sql.=" and " if($sql!~/where\ $/);
-			$sql.= grep(/^$key$/,@$device_fields) ? " d." : " ch.";
-			$sql.="$key $op '$val'";
-		
+		my @invalid = parseQueryParams($requestObject->{'getparams'},
+		                               \%getparams, [ @$device_fields, @$change_fields ],
+	                                      qr/^(_|page$|limit$|start$)/i);
+		if (@invalid) {
+			return invalidQueryParamError($requestObject, @invalid);
 		}
 	}
-	$sql=~s/where\ // if($sql=~/where\ $/);
+
+	$parms = [];
+	for my $field (keys %getparams) {
+		my $table_abbrev;
+		my $value;
+
+		$where_sql .= " and " if ($where_sql);
+		$table_abbrev = grep(/^$field$/,@$device_fields) ? "d" : "ch";
+		$value = $getparams{$field}{val};
+		$where_sql .= sprintf " %s.%s %s ?", $table_abbrev, $field,
+		                      $getparams{$field}{op};
+
+		push @$parms, $getparams{$field}{val};
+	}
+
+	$sql .= " where" . $where_sql if ($where_sql);
+
 	my $rtn= &recordFetch($requestObject,$sql,$parms);
 	
 	if(ref $rtn eq 'HASH' && defined $rtn->{metaData} && defined $rtn->{metaData}->{fields})
@@ -1515,41 +1518,41 @@ sub doGenericGET()
 	# ro = { entity,  path[0]  query  }
 	
 	my ($keyval,$sql,$parms,$return);
+	my $where_sql;
+	my %getparams;
 	$logger->info("processing GET");
 	my $requestObject=shift;
 	# check to see if this entity requires special processing, otherwise handle with generic
 	# assemble sql based on input parameters
-	$sql="select * from $$requestObject{'entity'} where ";
+	$sql="select * from $$requestObject{'entity'}";
 
 	# check for path key value and add if specified
 	if($$requestObject{'path'}[0])
 	{
 		$logger->debug("found $tree->{entities}->{$$requestObject{'entity'}}->{key} : $$requestObject{'path'}[0] in url") if ($logger->is_debug());
-		$sql.=" $tree->{entities}->{$$requestObject{'entity'}}->{key} like ?";
+		$where_sql.=" $tree->{entities}->{$$requestObject{'entity'}}->{key} like ?";
 		push(@$parms,$$requestObject{'path'}[0]);
 	}
 	elsif($$requestObject{getparams}) {
-		my @ranges=split(/[&;]/, $$requestObject{getparams});
-		foreach my $range (@ranges) {
-			next unless $range =~ /(\w+)([!~>=<]+)(.+)/;
-			my $key = $1;
-			my $op = $2;
-			my $val = $3;
-            next if $key =~ /^_/;
-			$val =~ s/'//g;
-			$op = 'LIKE' if $op eq '=';
-			$op = 'NOT LIKE' if $op eq '!=';
-			$op = 'RLIKE' if $op eq '~';
-			$op = 'NOT RLIKE' if $op eq '!~';
-			$logger->debug("Found param: $key $op $val") if ($logger->is_debug());
-			$val =~ s/\*/%/g;
-			$sql.=" and " if($sql!~/where\ $/);
-			$sql.=" $key $op '$val'";
-		
+		my @invalid = parseQueryParams($requestObject->{'getparams'},
+		                               \%getparams, getFieldList($requestObject->{entity}),
+	                                      qr/^(_|page$|limit$|start$)/i);
+		if (@invalid) {
+			return invalidQueryParamError($requestObject, @invalid);
+		}
+
+		$parms = [];
+		foreach my $field (keys %getparams) {
+			$where_sql .= " and " if ($where_sql);
+			$where_sql .= sprintf " %s %s ?", $field, $getparams{$field}{op};
+			push @$parms, $getparams{$field}{val};
 		}
 	}
-	$sql=~s/where\ // if($sql=~/where\ $/);
+
+	$sql .= " where $where_sql" if ($where_sql);
+
 	my $rec=&recordFetch($requestObject,$sql,$parms);
+
 	if(!$rec)
 	{
 		$$requestObject{'stat'}=Apache2::Const::HTTP_NOT_FOUND;
@@ -1631,30 +1634,50 @@ sub doGenericDELETE
 	
 }
 
+sub invalidQueryParamError
+{
+	my ($requestObject, @params) = @_;
+
+	$requestObject->{'stat'} = Apache2::Const::HTTP_BAD_REQUEST;
+	return sprintf 'invalid query parameter(s): %s',
+	               join(', ', @params);
+}
+
 sub parseQueryParams
 {
-	my ($data, $getparams, $valid_fields) = @_;
+	my ($data, $getparams, $valid_fields, $whitelist_regex) = @_;
+	my @invalid_params;
 
-        my @ranges=split(/[&;]/, $data);
-        foreach my $range (@ranges) {
+	my @ranges=split(/[&;]/, $data);
+	for my $range (@ranges) {
 #			next unless $range =~ /(\w+)([!~>=<]+)(.+)/;
-			next unless $range =~ /(\w+)([!~>=<]+)(.*)/;
-            my $key = $1;
-            my $op = $2;
-            my $val = $3;
-            next if $key =~ /^_/;
-			next unless (grep(/^$key$/,@$valid_fields));
-            $val =~ s/'//g;
-			$op = 'LIKE' if $op eq '=';
-			$op = 'NOT LIKE' if $op eq '!=';
-			$op = 'RLIKE' if $op eq '~';
-			$op = 'NOT RLIKE' if $op eq '!~';
-            $logger->debug("Found param: $key $op $val") if ($logger->is_debug());
-			$$getparams{$key}{op}=$op;
-			$$getparams{$key}{val}=$val;
+		next unless $range =~ /(\w+)([!~>=<]+)(.*)/;
+		my $key = $1;
+		my $op = $2;
+		my $val = $3;
+
+		if (defined $whitelist_regex) {
+			next if ($key =~ $whitelist_regex);
+		}
+
+		if (!grep(/^$key$/,@$valid_fields)) {
+			push @invalid_params, $key;
+		}
+
+		$val =~ s/'//g;
+		$op = 'LIKE' if $op eq '=';
+		$op = 'NOT LIKE' if $op eq '!=';
+		$op = 'RLIKE' if $op eq '~';
+		$op = 'NOT RLIKE' if $op eq '!~';
+		$logger->debug("Found param: $key $op $val") if ($logger->is_debug());
+		if (($op eq 'LIKE') || ($op eq 'NOT LIKE')) {
+			$val =~ s/\*/%/g;
+		}
+		$$getparams{$key}{op}=$op;
+		$$getparams{$key}{val}=$val;
 	}
 
-	return $getparams;
+	return @invalid_params;
 }
 
 sub doEnvironmentsServicesGET() {
@@ -1682,8 +1705,12 @@ sub doEnvironmentsServicesGET() {
 
 	if ($requestObject->{'getparams'}) {
 		@params = split(/[&;]/, $requestObject->{'getparams'});
-		parseQueryParams($requestObject->{'getparams'}, \%getparams,
-		                 [ 'type', 'name' ]);
+		my @invalid = parseQueryParams($requestObject->{'getparams'},
+		                               \%getparams, [ 'type', 'name' ],
+	                                      qr/^(_|page$|limit$|start$)/i);
+		if (@invalid) {
+			return invalidQueryParamError($requestObject, @invalid);
+		}
 	}
 
 	$environment_tag = 1 if defined $requestObject->{'query'}->{'_tag_environment'};
