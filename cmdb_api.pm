@@ -58,6 +58,10 @@ my $opt = Optconfig->new('cmdb_api', { 'driver=s' => 'mysql',
                                       'dbpass=s' => 'dbpass',
                                       'dbhost' => 'localhost',
                                       'database' => 'inventory',
+                                      'master_dbuser=s' => 'dbuser',
+                                      'master_dbpass=s' => 'dbpass',
+                                      'master_dbhost' => 'localhost',
+                                      'master_database' => 'inventory',
                                       'debug' => 1,
                                       'prism_domain' => 'prism.ppops.net',
 				      'default_domain' => 'ppops.net',
@@ -129,6 +133,20 @@ my $DBUSER=$opt->{'dbuser'};
 my $DBPASS=$opt->{'dbpass'};
 my $DATABASE=$opt->{'database'};
 my $DRIVER=$opt->{'driver'};
+my $MASTER_DBHOST=$opt->{'master_dbhost'};
+my $MASTER_DBUSER=$opt->{'master_dbuser'};
+my $MASTER_DBPASS=$opt->{'master_dbpass'};
+my $MASTER_DATABASE=$opt->{'master_database'};
+
+# If the master db host isn't defined, assume that
+# master/slave are the same.
+if (not defined $MASTER_DBHOST) {
+	$MASTER_DBHOST=$opt->{'dbhost'};
+	$MASTER_DBUSER=$opt->{'dbuser'};
+	$MASTER_DBPASS=$opt->{'dbpass'};
+	$MASTER_DATABASE=$opt->{'database'};
+}
+
 my ($lexicon,$tree,$parser);
 my ($parms);
 my $log_config_file=$opt->{'logconfig'};
@@ -142,9 +160,6 @@ unless($lexicon)
 	$lexicon=$opt->{'lexicon'};
 }
 
-# database connection
-#my $dbh=DBI->connect("DBI:$DRIVER:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS);
-our $dbh;
 #valid api types. these must exist and be parsable in the lexicon if they are 'Generic' 
 # or have provided do<ENTITY>GET/PUT/POST functions
 
@@ -236,7 +251,6 @@ sub lkupXMLPath()
 # mod perl2 handler
 sub handler() {
   my $timestarted = time();
- 	$dbh=DBI->connect("DBI:$DRIVER:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS);
 	my $r = shift;
 	my $up_uri = $r->unparsed_uri();
 	$up_uri =~ s/.+\?//;
@@ -250,7 +264,7 @@ sub handler() {
 	$$requestObject{'method'}=$req->method();
 	@{$$requestObject{'path'}}=split('/',$req->uri());
 	$$requestObject{'pathstr'}=$req->uri();
-	$$requestObject{'user'}=&doGenericGET({entity=>'user',path=>[$req->user]}) if $req->user;
+	$$requestObject{'user'}=&doGenericGET({method=>'GET', entity=>'user',path=>[$req->user]}) if $req->user;
 	$$requestObject{'http_auth_user'}=$req->user if $req->user;
 	$$requestObject{'ip_address'}=$r->connection->remote_ip();
 	if($$requestObject{'method'} ne 'GET')
@@ -377,6 +391,7 @@ sub handler() {
 	{
 		$logger->error("error parsing api str");
 	}
+
   my $timeended = time();
   my $timetaken = $timeended - $timestarted;
   if ($timetaken > 30) {
@@ -390,6 +405,7 @@ sub doFieldNormalization()
 {
 	my($entity,$field,$value)=@_;
 	my $newvalue;
+	my $dbh = openDbConnection();
 	$value=~s/^\ //g if defined $value;
 	$value=~s/\ $//g if defined $value;
 	my $matchers=$dbh->selectall_arrayref('select matcher,sub_value from inv_normalizer where entity_name=? and field_name=?',
@@ -410,7 +426,32 @@ sub doFieldNormalization()
 	return $value;
 }
 
-	
+sub openDbConnection
+{
+	my ($requestObject, $options) = @_;
+	my $dbh;
+	my ($db, $db_host, $db_port, $db_user, $db_pass);
+
+	if (defined $requestObject &&
+	    (($requestObject->{method} =~ /^(PUT|POST|DELETE)$/i) ||
+	     ($requestObject->{entity} =~ /^(newhost|pcmsystem)name$/i))) {
+		$db = $MASTER_DATABASE;
+		$db_host = $MASTER_DBHOST;
+		$db_user = $MASTER_DBUSER;
+		$db_pass = $MASTER_DBPASS;
+	} else {
+		$db = $DATABASE;
+		$db_host = $DBHOST;
+		$db_user = $DBUSER;
+		$db_pass = $DBPASS;
+	}
+
+	$dbh=DBI->connect("DBI:$DRIVER:database=$db;host=$db_host",
+	                  $db_user,$db_pass,$options);
+
+	return $dbh;
+}
+
 # lifted from mod_perl2 docs,  does body content read for post/put 	
 sub read_post {
      my $r = shift;
@@ -464,6 +505,7 @@ sub runACL()
 {
 	my($req,$r,$entity,$changes,$blocked_changes)=@_;
 	my($groups) = $req->{'user'}->{'groups'};
+	my $dbh = openDbConnection($req);
 	if(ref $groups ne 'ARRAYREF')
 	{
 		$logger->debug("groups ref= ".ref $groups) if ($logger->is_debug());
@@ -541,6 +583,7 @@ sub ProcessRequest()
 sub doColumn_lkupGET()
 {
 	my $requestObject=shift;
+	my $dbh = openDbConnection($requestObject);
 	my $entity=shift || $$requestObject{'path'}[0];
 	my $col=shift || $$requestObject{'path'}[1];
 
@@ -605,7 +648,8 @@ sub doUserGET()
 sub doTrafficControlPOST()
 {
 	my $requestObject=shift;
-	$requestObject->{'user'}=&doGenericGET({entity=>'user',path=>['trafficcontrol']});
+	$requestObject->{'user'}=&doGenericGET({method => 'GET', entity=>'user',path=>['trafficcontrol']});
+	my $dbh = openDbConnection($requestObject);
 	my $data=&eat_json($$requestObject{'body'},{allow_nonref=>1});
 	my ($lkup_data,$lkup);
 	$logger->debug("TC got POST from agent") if ($logger->is_debug());
@@ -648,6 +692,7 @@ sub doProvisionPcmGET()
 	my $requestObject=shift;
 	my $id = $$requestObject{'path'}[0];
 
+	my $dbh = openDbConnection($requestObject);
 	if(!$id)
 	{
 		$$requestObject{'stat'} = Apache2::Const::HTTP_NOT_ACCEPTABLE;
@@ -676,7 +721,7 @@ sub doProvisionPcmGET()
 	$$record{'status'} = 'idle';
         $$record{'serial_number'} = $id;
 
-	my $name = &setNewName($record, '.' . $opt->{'prism_domain'});
+	my $name = &setNewName($requestObject, $record, '.' . $opt->{'prism_domain'});
 
 	$$requestObject{'stat'} = Apache2::Const::HTTP_OK;
         return {'fqdn'=>$name};
@@ -688,6 +733,8 @@ sub doProvisionGET()
 	my $requestObject=shift;
 	my ($sql,$sth,$rv);
 	my $domain = $opt->{'default_domain'};
+
+	my $dbh = openDbConnection($requestObject);
 
 	if($$requestObject{'query'}{'domain'}) {
 		$domain = $$requestObject{'query'}{'domain'};
@@ -758,7 +805,7 @@ sub doProvisionGET()
 		# call setNewName which will rename if it doesn't match
 		$$new{'fqdn'}=$$data[0]{'fqdn'};
 		$$new{'status'}=$$data[0]{'status'};
-		$newname=&setNewName($new, '.' . $domain);
+		$newname=&setNewName($requestObject, $new, '.' . $domain);
 		# set the IP for this system since it's coming online from provisioning vlan
 		# validate that the IP is on the provisioning vlan
 		if($$requestObject{'query'}{'ip_address'} && $$requestObject{'query'}{'ip_address'} =~ /10\.\d{1,3}\.25/)
@@ -782,7 +829,7 @@ sub doProvisionGET()
 			return 'missing data (inventory_component_type)';
 		}
 		$$new{'status'}='idle';
-		$newname=&setNewName($new, '.' . $domain);
+		$newname=&setNewName($requestObject, $new, '.' . $domain);
 		if($newname=~/ERROR/)
 		{
 			$$requestObject{'stat'}=Apache2::Const::HTTP_FAILED_DEPENDENCY;
@@ -804,6 +851,7 @@ sub doProvisionGET()
 
 sub setNewName()
 {
+	my $requestObject=shift;
 	my $r=shift;
 	my $suffix=shift || "";
 	my ($sql,$parms,$where);
@@ -845,8 +893,7 @@ sub setNewName()
 		push(@$parms,$$r{'fqdn'});
 	}
 
-	my $dbh=DBI->connect("DBI:mysql:database=inventory;host=$DBHOST",
-			     $DBUSER,$DBPASS,{AutoCommit=>0,RaiseError=>1});
+	my $dbh = openDbConnection($requestObject, { AutoCommit => 0, RaiseError => 1 });
 	my $sth;
 
 	eval {
@@ -885,9 +932,9 @@ sub setNewName()
 }
 
 sub doSql {
+	my $dbh=shift;
 	my $sql=shift;
 	my $parms=shift;
-	my $dbh=DBI->connect("DBI:$DRIVER:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS);
 	
 	my $sth=$dbh->prepare($sql);
 	my $sql_out;
@@ -906,11 +953,12 @@ sub doSql {
 }
 sub recordFetch(){ 
 	my $requestObject=shift;
+	my $dbh = openDbConnection($requestObject);
 	my $sql=shift;
 	my $parms=shift;
 	my $return;
 
-	my $rtn=&doSql($sql,$parms);
+	my $rtn=&doSql($dbh, $sql,$parms);
 	if($$rtn{'err'})
 	{
 		$$requestObject{'stat'}=Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
@@ -956,12 +1004,12 @@ sub doGenericPUT
 	my $requestObject=shift;
 	my $entity=$$requestObject{'entity'};
 	$logger->info("processing PUT");
-	my $dbs=DBI->connect("DBI:$DRIVER:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS,{AutoCommit=>1});
+	my $dbs = openDbConnection($requestObject, {AutoCommit => 1});
 	$dbs->begin_work;
 	my (@sql,$parms,@errors);
 	my $data=&eat_json($$requestObject{'body'},{allow_nonref=>1});	
 	#audit fetch record to comparison during audit
-	my $now=$dbh->selectcol_arrayref('select now()');
+	my $now=$dbs->selectcol_arrayref('select now()');
 	my @entity_fields=@{&getFieldList($$requestObject{'entity'})};
 	my $lkup_data=&doGenericGET($requestObject);
 	if(scalar(keys(%$lkup_data)) == 0)
@@ -1101,6 +1149,7 @@ sub doGenericPOST
 {
 	my ($sql);
 	my $requestObject=shift;
+	my $dbh = openDbConnection($requestObject);
 	my $entity=$$requestObject{'entity'};
 	$logger->info("processing POST");
 	my (@sql,$parms);
@@ -1179,6 +1228,7 @@ sub doAclGET {
 sub doAclPOST {
 	my ($sql);
 	my $requestObject=shift;
+	my $dbh = openDbConnection($requestObject);
 	my $entity=$$requestObject{'entity'};
 	$logger->info("processing POST");
 	my (@sql,$parms);
@@ -1235,12 +1285,12 @@ sub doAclPUT {
 	my $requestObject=shift;
 	my $entity=$$requestObject{'entity'};
 	$logger->info("processing PUT");
-	my $dbs=DBI->connect("DBI:$DRIVER:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS,{AutoCommit=>1});
+	my $dbs = openDbConnection($requestObject, {AutoCommit => 0});
 	$dbs->begin_work;
 	my (@sql,$parms,@errors);
 	my $data=&eat_json($$requestObject{'body'},{allow_nonref=>1});	
 	#audit fetch record to comparison during audit
-	my $now=$dbh->selectcol_arrayref('select now()');
+	my $now=$dbs->selectcol_arrayref('select now()');
 	my @entity_fields=@{&getFieldList($$requestObject{'entity'})};
 	my $lkup_data=&doGenericGET($requestObject);
 	if($$lkup_data{'metaData'})
@@ -1514,6 +1564,7 @@ sub doGenericGET()
 sub doGenericDELETE
 {
 	my $requestObject=shift;
+	my $dbh = openDbConnection($requestObject);
 	my $entity=$$requestObject{'entity'};
 	my ($sql,$parms);
 	# continue if entity key segment of the path is there
@@ -1608,6 +1659,7 @@ sub parseQueryParams
 
 sub doEnvironmentsServicesGET() {
 	my $requestObject=shift;
+	my $dbh = openDbConnection($requestObject);
 	my $environment;
 	my $service;
 	my @parents;
@@ -1622,7 +1674,7 @@ sub doEnvironmentsServicesGET() {
 	my $sql = "select name, environment_name from service_instance " .
 	          "where type='environment'";
 
-	my $rtn = &doSql($sql, undef);
+	my $rtn = &doSql($dbh, $sql, undef);
 	if ($$rtn{'err'}) {
 		$$requestObject{'stat'}=Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
 		return $$rtn{'err'} . " : " . $$rtn{'errstr'};
@@ -1674,7 +1726,7 @@ sub doEnvironmentsServicesGET() {
 	        "left join service_instance_data as d on s.svc_id = d.svc_id " .
 	        "order by field(environment_name, $list)";
 
-	$rtn = &doSql($sql, undef);
+	$rtn = &doSql($dbh, $sql, undef);
 	if ($$rtn{'err'}) {
 		$$requestObject{'stat'}=Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
 		return $$rtn{'err'} . " : " . $$rtn{'errstr'};
@@ -1755,8 +1807,7 @@ sub executeDbStatement {
 sub doEnvironmentsServicesPUT(){
 	my $requestObject=shift;
 	$logger->info("processing PUT");
-	my $dbh=DBI->connect("DBI:$DRIVER:database=$DATABASE;host=$DBHOST",
-			     $DBUSER,$DBPASS,{AutoCommit=>0,RaiseError=>1});
+	my $dbh = openDbConnection($requestObject, {AutoCommit => 0, RaiseError => 1});
 	my $environment = $requestObject->{'path'}[0];
 	my $service = $requestObject->{'path'}[2];
 	my $data=&eat_json($$requestObject{'body'},{allow_nonref=>1});
@@ -1952,8 +2003,7 @@ sub doEnvironmentsServicesPUT(){
 sub doEnvironmentsServicesPOST(){
 	my $requestObject=shift;
 	$logger->info("processing POST");
-	my $dbh=DBI->connect("DBI:$DRIVER:database=$DATABASE;host=$DBHOST",
-			     $DBUSER,$DBPASS,{AutoCommit=>0,RaiseError=>1});
+	my $dbh = openDbConnection($requestObject, {AutoCommit => 0, RaiseError => 1});
 	my $environment = $requestObject->{'path'}[0];
 	my $service = $requestObject->{'path'}[2];
 	my $data=&eat_json($$requestObject{'body'},{allow_nonref=>1});
@@ -2069,8 +2119,7 @@ sub doEnvironmentsServicesPOST(){
 sub doEnvironmentsServicesDELETE(){
 	my $requestObject=shift;
 	$logger->info("processing DELETE");
-	my $dbh=DBI->connect("DBI:$DRIVER:database=$DATABASE;host=$DBHOST",
-			     $DBUSER,$DBPASS,{AutoCommit=>0,RaiseError=>1});
+	my $dbh = openDbConnection($requestObject, {AutoCommit=>0, RaiseError=>1});
 	my $environment = $requestObject->{'path'}[0];
 	my $service = $requestObject->{'path'}[2];
 	my $blocked_changes={};
@@ -2237,6 +2286,7 @@ sub doEnvironmentsDELETE(){
 # special functions to handle device and systems
 sub doSystemGET(){
 	my $requestObject=shift;
+	my $dbh = openDbConnection($requestObject);
 	my $x=0;
 	my $device_fields=&getFieldList('device',1);
 	my $meta_fields=&getFieldList($$requestObject{'entity'},1);
@@ -2246,6 +2296,7 @@ sub doSystemGET(){
 		$where_sql=' d.fqdn=?';
 		push(@$parms,$$requestObject{'path'}[0]);
 	}
+
 	my %getparams;
 	# parse custom URL query options ( for allowing ` ! etc...)
     if($$requestObject{getparams}) {
@@ -2340,7 +2391,7 @@ sub doSystemGET(){
 	$sql.=" group by d.fqdn";
 
 
-	my $rtn = doSql("create temporary table ch (INDEX idx_entity_key (entity_key)) " .
+	my $rtn = doSql($dbh, "create temporary table ch (INDEX idx_entity_key (entity_key)) " .
 	                "select entity_key,count(id) as count from change_queue group by entity_key");
 	if ($$rtn{'err'}) {
 		$$requestObject{'stat'}=Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
@@ -2349,7 +2400,7 @@ sub doSystemGET(){
 
 	my $rec=&recordFetch($requestObject,$sql,$parms);
 
-	$rtn = doSql("drop temporary table ch");
+	$rtn = doSql($dbh, "drop temporary table ch");
 	if ($$rtn{'err'}) {
 		$$requestObject{'stat'}=Apache2::Const::HTTP_INTERNAL_SERVER_ERROR;
 		return $$rtn{'err'} . " : " . $$rtn{'errstr'};
@@ -2369,7 +2420,7 @@ sub doSystemGET(){
 
 sub doSystemPUT(){
 	my $requestObject=shift;
-	my $dbs=DBI->connect("DBI:$DRIVER:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS,{AutoCommit=>1});
+	my $dbs = openDbConnection($requestObject, {AutoCommit=>1});
 	my $x=0;
 	my $fqdn=$$requestObject{'path'}[0];
 	my $data=&eat_json($$requestObject{'body'},{allow_nonref=>1});
@@ -2377,7 +2428,7 @@ sub doSystemPUT(){
 	my $device_fields=&getFieldList('device',1);
 	my $meta_fields=&getFieldList($$requestObject{'entity'},1);
 	my ($sql,$set_sql,$parms,@errors,$rv);
-	my $now=$dbh->selectcol_arrayref('select now()');
+	my $now=$dbs->selectcol_arrayref('select now()');
 	my $lkup_data=&doSystemGET($requestObject);
 	# Check to make sure the date modified/versiom of the record being submitted matches the 
 	# the stored record. if the stored record is newer, return error
@@ -2422,11 +2473,11 @@ sub doSystemPUT(){
 	{
 		if($data->{'ip_address'})
 		{
-			$data->{'data_center_code'}=&lookupDC($data->{'ip_address'});			
+			$data->{'data_center_code'}=&lookupDC($dbs, $data->{'ip_address'});
 		}
 		else
 		{
-			$data->{'data_center_code'}=&lookupDC($lkup_data->{'ip_address'});			
+			$data->{'data_center_code'}=&lookupDC($dbs, $lkup_data->{'ip_address'});
 		}
 	}
 
@@ -2538,7 +2589,7 @@ sub doSystemPUT(){
 		$fqdn=$$data{'fqdn'};
 	}
 	#update or insert into ip table
-	#doUpdateIps($fqdn,$data);
+	#doUpdateIps($requestObject,$fqdn,$data);
 
 	
 	# do update or insert into device_metadata
@@ -2608,7 +2659,7 @@ sub doSystemPUT(){
 }
 sub doSystemPOST(){
 	my $requestObject=shift;
-	my $dbs=DBI->connect("DBI:$DRIVER:database=$DATABASE;host=$DBHOST",$DBUSER,$DBPASS,{AutoCommit=>1});
+	my $dbs = openDbConnection($requestObject, {AutoCommit=>1});
 	my $x=0;
 	my $data=&eat_json($$requestObject{'body'},{allow_nonref=>1});
 	my $fqdn=$$data{'fqdn'};
@@ -2620,7 +2671,7 @@ sub doSystemPOST(){
 	if($data->{'ip_address'} && !$data->{'data_center_code'})
 	{
 
-		$data->{'data_center_code'}=&lookupDC($data->{'ip_address'});
+		$data->{'data_center_code'}=&lookupDC($dbs, $data->{'ip_address'});
 	}
 
 	if (!length("$fqdn")) {
@@ -2661,7 +2712,7 @@ sub doSystemPOST(){
 		$dbs->rollback;
 		return \@errors;
 	}
-	#doUpdateIps($fqdn,$data);
+	#doUpdateIps($requestObject,$fqdn,$data);
 	
 	# do update or insert into device_metadata
 	foreach(@$meta_fields)
@@ -2696,9 +2747,9 @@ sub doSystemPOST(){
 	
 }
 
-sub lookupDC()
+sub lookupDC
 {
-	my $ip=shift;
+	my ($dbh, $ip)=@_;
 	my $dc=$dbh->selectcol_arrayref('select data_center_code from 
 		datacenter_subnet s
 		where
@@ -2714,9 +2765,11 @@ sub lookupDC()
 	return $$dc[0];
 }
 sub doUpdateIps {
+	my $requestObject = shift;
         my $fqdn = shift;
         my $data = shift;
         my $ips = getExistingIps($fqdn);
+	my $dbh = openDbConnection($requestObject);
         my @interfaces;
         foreach my $slot (grep(/mac[_]{0,1}address_.*/, keys %$data)) {
                 $slot =~ /mac[_]{0,1}address_(.*)/;
