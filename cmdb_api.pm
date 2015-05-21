@@ -476,10 +476,32 @@ sub read_post {
  }
 
 
+# Remove non-writable fields from the request data.  These fields are
+# usually managed by the API or internally by the database itself and
+# should not be modified by the user.
+sub stripReadOnlyAttrs
+{
+	my ($entity, $data) = @_;
+	my $entity_tree;
 
+	if (not exists $tree_extended->{entities}->{$entity}) {
+		$entity_tree = $tree->{entities}->{$entity};
+	} else {
+		$entity_tree = $tree_extended->{entities}->{$entity};
+	}
+
+	for my $attr (keys %{$entity_tree}) {
+		next if ($attr eq 'key' || $attr eq 'extends' || $attr eq 'table');
+		
+		if ($entity_tree->{$attr}->{readonly}) {
+			$logger->debug("removing attribute '$attr' from request for '$entity'");
+			delete $data->{$attr};
+		}
+	}
+}
 
 #processes lexicon to get fields for an entity
-sub getFieldList()
+sub getFieldList
 {
 	my $entity=shift;
 	my $bare=shift || 0;
@@ -2457,9 +2479,9 @@ sub doSystemPUT(){
 	my ($sql,$set_sql,$parms,@errors,$rv);
 	my $now=$dbs->selectcol_arrayref('select now()');
 	my $lkup_data=&doSystemGET($requestObject);
+
 	# Check to make sure the date modified/versiom of the record being submitted matches the 
 	# the stored record. if the stored record is newer, return error
-	delete $$data{'date_created'};
 	if( defined $$data{'date_modified'} )
 	{
 				my $date_modified_submitted=ParseDate($$data{'date_modified'});
@@ -2471,6 +2493,9 @@ sub doSystemPUT(){
 					return "stored record has already been modified";
 				}
 	}
+
+	stripReadOnlyAttrs($$requestObject{'entity'}, $data);
+
 	if($$lkup_data{'metaData'})
 	{
 		$lkup_data=$$lkup_data{'records'}[0]
@@ -2706,7 +2731,7 @@ sub doSystemPOST(){
 		return "must specify fqdn";
 	}
 
-	delete $$data{'date_created'};
+	stripReadOnlyAttrs($$requestObject{'entity'}, $data);
 
 	$dbs->begin_work;
 	# construct insert sql for device table
