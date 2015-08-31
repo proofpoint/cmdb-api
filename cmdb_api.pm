@@ -2737,7 +2737,8 @@ sub doSystemPOST(){
 	# construct insert sql for device table
 	foreach(@$device_fields)
 	{
-		next if $_ eq 'created_by';
+		next if (($_ eq 'date_created') || ($_ eq 'created_by'));
+
 		if(exists $$data{$_})
 		{
 			$$data{$_}=&doFieldNormalization('system',$_,$$data{$_});
