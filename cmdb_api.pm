@@ -58,10 +58,10 @@ my $opt = Optconfig->new('cmdb_api', { 'driver=s' => 'mysql',
                                       'dbpass=s' => 'dbpass',
                                       'dbhost' => 'localhost',
                                       'database' => 'inventory',
-                                      'master_dbuser=s' => 'dbuser',
-                                      'master_dbpass=s' => 'dbpass',
-                                      'master_dbhost' => 'localhost',
-                                      'master_database' => 'inventory',
+                                      'master_dbuser=s' => '',
+                                      'master_dbpass=s' => '',
+                                      'master_dbhost' => '',
+                                      'master_database' => '',
                                       'debug' => 1,
                                       'prism_domain' => 'prism.ppops.net',
 				      'default_domain' => 'ppops.net',
@@ -140,7 +140,8 @@ my $MASTER_DATABASE=$opt->{'master_database'};
 
 # If the master db host isn't defined, assume that
 # master/slave are the same.
-if (not defined $MASTER_DBHOST) {
+if ((not defined $MASTER_DBHOST) || ($MASTER_DBHOST eq $DBHOST) ||
+    ($MASTER_DBHOST eq '')) {
 	$MASTER_DBHOST=$opt->{'dbhost'};
 	$MASTER_DBUSER=$opt->{'dbuser'};
 	$MASTER_DBPASS=$opt->{'dbpass'};
@@ -403,9 +404,8 @@ sub handler() {
 
 sub doFieldNormalization()
 {
-	my($entity,$field,$value)=@_;
+	my($dbh,$entity,$field,$value)=@_;
 	my $newvalue;
-	my $dbh = openDbConnection();
 	$value=~s/^\ //g if defined $value;
 	$value=~s/\ $//g if defined $value;
 	my $matchers=$dbh->selectall_arrayref('select matcher,sub_value from inv_normalizer where entity_name=? and field_name=?',
@@ -527,12 +527,12 @@ sub runACL()
 {
 	my($req,$r,$entity,$changes,$blocked_changes)=@_;
 	my($groups) = $req->{'user'}->{'groups'};
-	my $dbh = openDbConnection($req);
 	if(ref $groups ne 'ARRAYREF')
 	{
 		$logger->debug("groups ref= ".ref $groups) if ($logger->is_debug());
 		$groups = [split(',',$groups)]; 
 	}
+	my $dbh = openDbConnection($req);
  	my $acls = $dbh->selectall_arrayref("select * from acl where entity=?", { Slice => {} },($entity));
 	foreach my $field (keys(%$changes))
 	{
@@ -670,8 +670,8 @@ sub doUserGET()
 sub doTrafficControlPOST()
 {
 	my $requestObject=shift;
-	$requestObject->{'user'}=&doGenericGET({method => 'GET', entity=>'user',path=>['trafficcontrol']});
 	my $dbh = openDbConnection($requestObject);
+	$requestObject->{'user'}=&doGenericGET({method => 'GET', entity=>'user',path=>['trafficcontrol']});
 	my $data=&eat_json($$requestObject{'body'},{allow_nonref=>1});
 	my ($lkup_data,$lkup);
 	$logger->debug("TC got POST from agent") if ($logger->is_debug());
@@ -808,7 +808,7 @@ sub doProvisionGET()
 		$$requestObject{'query'}{$f}=~s/\s+$//g;
 		if($$requestObject{'query'}{$f})
 		{
-			$$new{$f}=&doFieldNormalization('system',$f,$$requestObject{'query'}{$f});
+			$$new{$f}=&doFieldNormalization($dbh,'system',$f,$$requestObject{'query'}{$f});
 			#$$new{$f}=$$requestObject{'query'}{$f};
 		}
 	}
@@ -1052,7 +1052,7 @@ sub doGenericPUT
 	my $mtime;
 	foreach(@entity_fields)
 	{
-		$$data{$_}=&doFieldNormalization($entity,$_,$$data{$_}) if exists $$data{$_};
+		$$data{$_}=&doFieldNormalization($dbs,$entity,$_,$$data{$_}) if exists $$data{$_};
 		$mtime= $$now[0] if(exists $$data{$_} && !$tree_extended->{entities}->{'system'}->{$_}->{meta} );
 		delete $$data{$_} if(defined $$data{$_} && defined $$lkup_data{$_} && $$data{$_} eq $$lkup_data{$_});
 	}
@@ -1190,7 +1190,7 @@ sub doGenericPOST
 	{
 		if(exists $$data{$f})
 		{
-			$$data{$f}=&doFieldNormalization($entity,$f,$$data{$f});
+			$$data{$f}=&doFieldNormalization($dbh,$entity,$f,$$data{$f});
 			push(@$parms,$$data{$f});
 			push(@sql,"$f=?");
 		}
@@ -1273,7 +1273,7 @@ sub doAclPOST {
 	{
 		if(exists $$data{$f})
 		{
-			$$data{$f}=&doFieldNormalization($entity,$f,$$data{$f});
+			$$data{$f}=&doFieldNormalization($dbh,$entity,$f,$$data{$f});
 			push(@$parms,$$data{$f});
 			push(@sql,"$f=?")
 		}
@@ -1327,7 +1327,7 @@ sub doAclPUT {
 	my $mtime;
 	foreach(@entity_fields)
 	{
-		$$data{$_}=&doFieldNormalization($entity,$_,$$data{$_}) if exists $$data{$_};
+		$$data{$_}=&doFieldNormalization($dbs,$entity,$_,$$data{$_}) if exists $$data{$_};
 		$mtime= $$now[0] if(exists $$data{$_} && !$tree_extended->{entities}->{'system'}->{$_}->{meta} );
 		delete $$data{$_} if(exists $$data{$_} && exists $$lkup_data{$_} && $$data{$_} eq $$lkup_data{$_});
 	}
@@ -2537,13 +2537,13 @@ sub doSystemPUT(){
 	my $mtime;
 	foreach(@$device_fields)
 	{	
-		$$data{$_}=&doFieldNormalization('system',$_,$$data{$_}) if exists $$data{$_};
+		$$data{$_}=&doFieldNormalization($dbs,'system',$_,$$data{$_}) if exists $$data{$_};
 		$mtime= $$now[0] if(exists $$data{$_} && !$tree_extended->{'entities'}->{'system'}->{$_}->{'meta'} );
 		delete $$data{$_} if(defined $$data{$_} && defined $$lkup_data{$_} && $$data{$_} eq $$lkup_data{$_});
 	}
 	foreach(@$meta_fields)
 	{
-		$$data{$_}=&doFieldNormalization('system',$_,$$data{$_}) if exists $$data{$_};
+		$$data{$_}=&doFieldNormalization($dbs,'system',$_,$$data{$_}) if exists $$data{$_};
 		$mtime= $$now[0] if(exists $$data{$_} && !$tree_extended->{'entities'}->{'system'}->{$_}->{'meta'} );
 		delete $$data{$_} if(defined $$data{$_} && defined $$lkup_data{$_} && $$data{$_} eq $$lkup_data{$_});
 	}
@@ -2641,7 +2641,7 @@ sub doSystemPUT(){
 		$fqdn=$$data{'fqdn'};
 	}
 	#update or insert into ip table
-	#doUpdateIps($requestObject,$fqdn,$data);
+	#doUpdateIps($dbs,$fqdn,$data);
 
 	
 	# do update or insert into device_metadata
@@ -2649,7 +2649,7 @@ sub doSystemPUT(){
 	{
 		if(exists $$data{$_})
 		{	
-			$$data{$_}=&doFieldNormalization('system',$_,$$data{$_});
+			$$data{$_}=&doFieldNormalization($dbs,'system',$_,$$data{$_});
 			my $lkup=$dbs->selectrow_hashref("select fqdn from device_metadata where metadata_name=? and fqdn=?",{},($_,$fqdn));
 			# if exists do update
 			if($$lkup{'fqdn'})
@@ -2741,7 +2741,7 @@ sub doSystemPOST(){
 
 		if(exists $$data{$_})
 		{
-			$$data{$_}=&doFieldNormalization('system',$_,$$data{$_});
+			$$data{$_}=&doFieldNormalization($dbs,'system',$_,$$data{$_});
 			$set_sql.="," if $set_sql;
 			if( length($$data{$_})==0 )
 			{
@@ -2765,14 +2765,14 @@ sub doSystemPOST(){
 		$dbs->rollback;
 		return \@errors;
 	}
-	#doUpdateIps($requestObject,$fqdn,$data);
+	#doUpdateIps($dbs,$fqdn,$data);
 	
 	# do update or insert into device_metadata
 	foreach(@$meta_fields)
 	{
 		if(exists $$data{$_})
 		{	
-			$$data{$_}=&doFieldNormalization('system',$_,$$data{$_}) if exists $$data{$_};
+			$$data{$_}=&doFieldNormalization($dbs,'system',$_,$$data{$_}) if exists $$data{$_};
 			$sql="insert into device_metadata set metadata_value=?,metadata_name=?,fqdn=?,date_created=now()";
 			@$parms=($$data{$_},$_,$fqdn);
 			$logger->debug("doing sql: $sql with " . join(',',@$parms) ) if ($logger->is_debug());
@@ -2802,7 +2802,7 @@ sub doSystemPOST(){
 
 sub lookupDC
 {
-	my ($dbh, $ip)=@_;
+	my ($dbh, $ip) = @_;
 	my $dc=$dbh->selectcol_arrayref('select data_center_code from 
 		datacenter_subnet s
 		where
@@ -2818,11 +2818,9 @@ sub lookupDC
 	return $$dc[0];
 }
 sub doUpdateIps {
-	my $requestObject = shift;
-        my $fqdn = shift;
-        my $data = shift;
+
+	my ($dbh, $fqdn, $data) = @_;
         my $ips = getExistingIps($fqdn);
-	my $dbh = openDbConnection($requestObject);
         my @interfaces;
         foreach my $slot (grep(/mac[_]{0,1}address_.*/, keys %$data)) {
                 $slot =~ /mac[_]{0,1}address_(.*)/;
