@@ -432,9 +432,10 @@ sub openDbConnection
 	my $dbh;
 	my ($db, $db_host, $db_port, $db_user, $db_pass);
 
-	if (defined $requestObject &&
-	    (($requestObject->{method} =~ /^(PUT|POST|DELETE)$/i) ||
-	     ($requestObject->{entity} =~ /^(newhost|pcmsystem)name$/i))) {
+	if ((not defined $requestObject) ||
+	    (not defined $requestObject->{method}) ||
+	    ($requestObject->{method} =~ /^(PUT|POST|DELETE)$/i) ||
+	     ($requestObject->{entity} =~ /^(newhost|pcmsystem)name$/i)) {
 		$db = $MASTER_DATABASE;
 		$db_host = $MASTER_DBHOST;
 		$db_user = $MASTER_DBUSER;
