@@ -58,10 +58,10 @@ my $opt = Optconfig->new('cmdb_api', { 'driver=s' => 'mysql',
                                       'dbpass=s' => 'dbpass',
                                       'dbhost' => 'localhost',
                                       'database' => 'inventory',
-                                      'master_dbuser=s' => '',
-                                      'master_dbpass=s' => '',
-                                      'master_dbhost' => '',
-                                      'master_database' => '',
+                                      'slave_dbuser=s' => '',
+                                      'slave_dbpass=s' => '',
+                                      'slave_dbhost' => '',
+                                      'slave_database' => '',
                                       'debug' => 1,
                                       'prism_domain' => 'prism.ppops.net',
 				      'default_domain' => 'ppops.net',
@@ -133,19 +133,19 @@ my $DBUSER=$opt->{'dbuser'};
 my $DBPASS=$opt->{'dbpass'};
 my $DATABASE=$opt->{'database'};
 my $DRIVER=$opt->{'driver'};
-my $MASTER_DBHOST=$opt->{'master_dbhost'};
-my $MASTER_DBUSER=$opt->{'master_dbuser'};
-my $MASTER_DBPASS=$opt->{'master_dbpass'};
-my $MASTER_DATABASE=$opt->{'master_database'};
+my $SLAVE_DBHOST=$opt->{'slave_dbhost'};
+my $SLAVE_DBUSER=$opt->{'slave_dbuser'};
+my $SLAVE_DBPASS=$opt->{'slave_dbpass'};
+my $SLAVE_DATABASE=$opt->{'slave_database'};
 
-# If the master db host isn't defined, assume that
+# If the slave db host isn't defined, assume that
 # master/slave are the same.
-if ((not defined $MASTER_DBHOST) || ($MASTER_DBHOST eq $DBHOST) ||
-    ($MASTER_DBHOST eq '')) {
-	$MASTER_DBHOST=$opt->{'dbhost'};
-	$MASTER_DBUSER=$opt->{'dbuser'};
-	$MASTER_DBPASS=$opt->{'dbpass'};
-	$MASTER_DATABASE=$opt->{'database'};
+if ((not defined $SLAVE_DBHOST) || ($SLAVE_DBHOST eq $DBHOST) ||
+    ($SLAVE_DBHOST eq '')) {
+	$SLAVE_DBHOST=$opt->{'dbhost'};
+	$SLAVE_DBUSER=$opt->{'dbuser'};
+	$SLAVE_DBPASS=$opt->{'dbpass'};
+	$SLAVE_DATABASE=$opt->{'database'};
 }
 
 my ($lexicon,$tree,$parser);
@@ -436,15 +436,15 @@ sub openDbConnection
 	    (not defined $requestObject->{method}) ||
 	    ($requestObject->{method} =~ /^(PUT|POST|DELETE)$/i) ||
 	     ($requestObject->{entity} =~ /^(newhost|pcmsystem)name$/i)) {
-		$db = $MASTER_DATABASE;
-		$db_host = $MASTER_DBHOST;
-		$db_user = $MASTER_DBUSER;
-		$db_pass = $MASTER_DBPASS;
-	} else {
 		$db = $DATABASE;
 		$db_host = $DBHOST;
 		$db_user = $DBUSER;
 		$db_pass = $DBPASS;
+	} else {
+		$db = $SLAVE_DATABASE;
+		$db_host = $SLAVE_DBHOST;
+		$db_user = $SLAVE_DBUSER;
+		$db_pass = $SLAVE_DBPASS;
 	}
 
 	$dbh=DBI->connect("DBI:$DRIVER:database=$db;host=$db_host",
